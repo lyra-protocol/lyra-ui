@@ -1,0 +1,54 @@
+.
+├── AGENTS.md
+├── CLAUDE.md
+├── README.md
+├── app
+│   ├── (workspace)
+│   │   ├── layout.tsx
+│   │   └── workspace
+│   │       └── page.tsx
+│   ├── favicon.ico
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── components
+│   ├── ai
+│   │   └── ai-panel.tsx
+│   ├── execution
+│   │   └── execution-panel.tsx
+│   ├── shell
+│   │   └── command-bar.tsx
+│   ├── ui
+│   └── workspace
+│       ├── workspace-center.tsx
+│       ├── workspace-shell.tsx
+│       └── workspace-sidebar.tsx
+├── core
+│   ├── commands
+│   ├── components
+│   └── layout
+├── eslint.config.mjs
+├── lib
+├── next-env.d.ts
+├── next.config.ts
+├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
+├── postcss.config.mjs
+├── providers
+│   ├── app-provider.tsx
+│   └── query-provider.tsx
+├── public
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── vercel.svg
+│   └── window.svg
+├── stores
+│   ├── shell-store.ts
+│   ├── ui-store.ts
+│   └── workspace-store.ts
+├── structure.txt
+└── tsconfig.json
+
+18 directories, 34 files
