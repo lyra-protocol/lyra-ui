@@ -12,6 +12,7 @@ import { AiSignalCard } from "@/components/workspace/context/ai-signal-card";
 import {
   buildTurnsFromInsights,
   buildTurnsFromMessages,
+  mergeChatTurns,
 } from "@/components/workspace/context/ai-chat-turns";
 import { WorkspaceAiThreadHistory } from "@/components/workspace/context/workspace-ai-thread-history";
 import { WorkspaceAiOpportunitySettings } from "@/components/workspace/context/workspace-ai-opportunity-settings";
@@ -53,8 +54,7 @@ export function WorkspaceAiPanel({ active, detached = false }: { active: boolean
     [currentThreadId, liveInsights]
   );
   const turns = useMemo(() => {
-    const source = localTurns.length > 0 ? localTurns : persistedTurns;
-    return [...source].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+    return mergeChatTurns(persistedTurns, localTurns);
   }, [localTurns, persistedTurns]);
   const currentThread = threads.find((thread) => thread.id === currentThreadId) ?? null;
 

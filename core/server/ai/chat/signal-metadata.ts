@@ -55,9 +55,8 @@ export function pickPrimaryOpportunity(
   }
 
   return (
-    opportunities.find((item) => item.productId === activeProductId && item.verdict === "trade") ??
-    opportunities.find((item) => item.verdict === "trade") ??
     opportunities.find((item) => item.productId === activeProductId) ??
+    opportunities.find((item) => item.verdict === "trade") ??
     opportunities[0]
   );
 }
