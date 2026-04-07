@@ -216,14 +216,14 @@ export async function streamAiChatWithChatCompletions(args: {
     marketScan,
     args.effectiveSelection.activeProductId
   );
-  const primarySignal = primaryOpportunity
-    ? buildSignalSummaryFromOpportunity(primaryOpportunity, args.effectiveSelection.activeTimeframe)
-    : tradingSnapshot
-      ? buildSignalSummaryFromTradingSnapshot(
-          tradingSnapshot,
-          args.effectiveSelection.activeProductId,
-          args.context.market.symbol || args.effectiveSelection.activeProductId
-        )
+  const primarySignal = tradingSnapshot
+    ? buildSignalSummaryFromTradingSnapshot(
+        tradingSnapshot,
+        args.effectiveSelection.activeProductId,
+        args.context.market.symbol || args.effectiveSelection.activeProductId
+      )
+    : primaryOpportunity
+      ? buildSignalSummaryFromOpportunity(primaryOpportunity, args.effectiveSelection.activeTimeframe)
       : null;
 
   const stream = await getAzureOpenAiClient().chat.completions.create({
