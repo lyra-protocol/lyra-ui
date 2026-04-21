@@ -26,6 +26,7 @@ import {
 import { useMarketCandles } from "@/hooks/use-market-candles";
 import { useThemeMode } from "@/providers/theme-provider";
 import { useWorkspaceStore } from "@/stores/workspace-store";
+import { useTerminalPreferencesStore } from "@/stores/terminal-preferences-store";
 
 type LiveMarketChartProps = {
   productId: string;
@@ -36,6 +37,8 @@ type LiveMarketChartProps = {
 
 export function LiveMarketChart({ productId, timeframe, snapshot, activePosition }: LiveMarketChartProps) {
   const setFocusedRegion = useWorkspaceStore((state) => state.setFocusedRegion);
+  const indicators = useTerminalPreferencesStore((state) => state.indicators);
+  const volumeEnabled = indicators.includes("volume");
   const { resolvedTheme } = useThemeMode();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -154,6 +157,12 @@ export function LiveMarketChart({ productId, timeframe, snapshot, activePosition
     }
     syncPositionPriceLines(series, activePosition, positionLinesRef.current);
   }, [activePosition]);
+
+  useEffect(() => {
+    const series = volumeSeriesRef.current;
+    if (!series) return;
+    series.applyOptions({ visible: volumeEnabled });
+  }, [volumeEnabled]);
 
   return (
     <div className="relative h-full w-full" onPointerDown={() => setFocusedRegion("canvas")}>

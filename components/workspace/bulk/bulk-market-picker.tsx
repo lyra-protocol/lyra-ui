@@ -334,8 +334,8 @@ export function BulkMarketPicker({ align = "left" }: Props) {
               })
             )}
           </div>
-        </div>
-      ) : null}
+        </>
+      </FixedPortal>
     </div>
   );
 }
