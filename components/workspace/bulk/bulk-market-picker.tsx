@@ -63,23 +63,6 @@ export function BulkMarketPicker({ align = "left" }: Props) {
   const liveTickers = useLiveMarketTickers(open ? topProductIds : []);
 
   useEffect(() => {
-    if (!open) return;
-    const onClick = (event: MouseEvent) => {
-      if (!containerRef.current) return;
-      if (!containerRef.current.contains(event.target as Node)) setOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onClick);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 0);
   }, [open]);
 
@@ -166,13 +149,14 @@ export function BulkMarketPicker({ align = "left" }: Props) {
         />
       </button>
 
-      {open ? (
-        <div
-          className={cn(
-            "absolute top-[calc(100%+6px)] z-40 w-[780px] max-w-[calc(100vw-32px)] overflow-hidden rounded-[12px] border border-[var(--line-strong)] bg-[var(--panel)] shadow-[0_24px_64px_rgba(0,0,0,0.55)]",
-            align === "left" ? "left-0" : "right-0"
-          )}
-        >
+      <FixedPortal
+        anchorRef={containerRef}
+        open={open}
+        align={align === "left" ? "start" : "end"}
+        width={780}
+        onClose={() => setOpen(false)}
+      >
+        <>
           {/* Search */}
           <div className="flex items-center gap-2 border-b border-[var(--line)] px-3 py-2.5">
             <Search className="h-4 w-4 text-foreground/45" />
