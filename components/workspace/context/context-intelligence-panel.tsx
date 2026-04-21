@@ -33,20 +33,20 @@ export function ContextIntelligencePanel() {
 
   return (
     <aside
-      className="flex h-full min-h-0 flex-col overflow-hidden border-l border-black/8 bg-background"
+      className="flex h-full min-h-0 flex-col overflow-hidden border-l border-[var(--line)] bg-[var(--panel-2)]"
       onPointerDown={() => workspace.setFocusedRegion("context")}
     >
-      <div className="flex items-start justify-between gap-2 border-b border-black/8 px-2 py-1.5">
+      <div className="flex items-start justify-between gap-2 border-b border-[var(--line)] bg-[var(--panel)] px-3 py-2">
         <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-black/36">Context</p>
-          <p className="mt-1 truncate text-[11px] text-black/78">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-foreground/45">Context</p>
+          <p className="mt-1 truncate text-[11px] text-foreground/80">
             {activeMarket?.symbol ?? "Market"} · {workspace.activeTimeframe}
           </p>
         </div>
         <button
           type="button"
           onClick={openAiChat}
-          className="inline-flex h-8 w-8 items-center justify-center border border-black/10 bg-white text-black/60 transition hover:bg-black/[0.03] hover:text-black/82"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border border-[var(--line)] bg-[var(--panel-2)] text-foreground/70 transition hover:bg-foreground/[0.05] hover:text-foreground/90"
           aria-label="Open assistant"
           title="Assistant"
         >
@@ -71,7 +71,7 @@ export function ContextIntelligencePanel() {
           <PaperBalanceResetAction startingBalance={account.startingBalance} currency={account.currency} />
         </>
       ) : (
-        <div className="border-b border-black/8 px-2 py-3 text-[10px] leading-4 text-black/44">
+        <div className="border-b border-[var(--line)] bg-[var(--panel)] px-3 py-3 text-[10px] leading-4 text-foreground/50">
           {auth.authenticated ? "Loading paper workspace…" : "Connect a wallet to open your paper workspace."}
         </div>
       )}

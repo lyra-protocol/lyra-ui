@@ -25,20 +25,20 @@ export function CenterContextBar() {
       ? percentChange >= 0
         ? "text-[var(--positive)]"
         : "text-[var(--negative)]"
-      : "text-black/40";
+      : "text-foreground/45";
 
   return (
-    <div className="flex min-h-10 items-stretch border-b border-black/8 bg-background">
-      <div className="flex min-w-0 flex-1 items-center gap-2 border-r border-black/8 px-2">
+    <div className="flex min-h-10 items-stretch border-b border-[var(--line)] bg-[var(--panel)]">
+      <div className="flex min-w-0 flex-1 items-center gap-2 border-r border-[var(--line)] px-3">
         <div className="flex min-w-0 items-center gap-2">
-          <p className="truncate text-[12px] font-semibold tracking-tight text-black/92">
+          <p className="truncate text-[12px] font-semibold tracking-tight text-foreground/92">
             {activeProductId ? getDisplaySymbol(activeProductId) : "Loading…"}
           </p>
-          <p className="text-[11px] text-black/68">{formatPrice(activeMarketSnapshot?.price)}</p>
+          <p className="text-[11px] text-foreground/70">{formatPrice(activeMarketSnapshot?.price)}</p>
           <p className={["text-[10px]", percentClass].join(" ")}>{formatPercent(percentChange)}</p>
         </div>
 
-        <div className="hidden h-4 w-px bg-black/8 lg:block" />
+        <div className="hidden h-4 w-px bg-[var(--line)] lg:block" />
 
         <div className="hidden h-full items-end gap-2 lg:flex">
           {TIMEFRAMES.map((timeframe) => {
@@ -54,8 +54,8 @@ export function CenterContextBar() {
                 className={[
                   "h-7 border-b px-0 pb-1 text-[10px] font-medium transition",
                   active
-                    ? "border-black text-black"
-                    : "border-transparent text-black/36 hover:text-black/76",
+                    ? "border-foreground text-foreground"
+                    : "border-transparent text-foreground/40 hover:text-foreground/82",
                 ].join(" ")}
               >
                 {timeframe.label}
