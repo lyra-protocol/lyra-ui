@@ -35,6 +35,7 @@ export function BulkTopBar() {
   const theme = useThemeMode();
   const isTerminal = pathname?.startsWith("/terminal");
   const isSignal = pathname?.startsWith("/signal");
+  const isMcp = pathname?.startsWith("/mcp");
 
   const shortWallet = shortenWallet(auth.walletAddress);
   const label = auth.authenticated
@@ -59,6 +60,12 @@ export function BulkTopBar() {
             className={cn("transition", isSignal ? "text-foreground" : "hover:text-foreground")}
           >
             Signal
+          </Link>
+          <Link
+            href="/mcp"
+            className={cn("transition", isMcp ? "text-foreground" : "hover:text-foreground")}
+          >
+            MCP
           </Link>
           <button type="button" className="hover:text-foreground">
             Stake
