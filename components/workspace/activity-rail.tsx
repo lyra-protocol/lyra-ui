@@ -1,7 +1,8 @@
 "use client";
 
 import { RailSection, useWorkspaceStore } from "@/stores/workspace-store";
-import { PanelLeft, Search } from "lucide-react";
+import { PanelLeft, Search, MessageSquareText } from "lucide-react";
+import { useUIStore } from "@/stores/ui-store";
 
 type RailItem = {
   id: RailSection;
@@ -15,6 +16,7 @@ const RAIL_ITEMS: RailItem[] = [
 ];
 
 export function ActivityRail() {
+  const openAiChat = useUIStore((s) => s.openAiChat);
   const {
     activeRailSection,
     leftSidebarCollapsed,
@@ -67,6 +69,20 @@ export function ActivityRail() {
             </button>
           );
         })}
+
+        <div className="mt-1 px-2">
+          <div className="h-px w-full bg-black/8" />
+        </div>
+
+        <button
+          type="button"
+          onClick={openAiChat}
+          aria-label="Assistant"
+          title="Assistant"
+          className="relative flex h-10 items-center justify-center border-l-2 border-transparent text-black/44 transition hover:bg-black/[0.02] hover:text-black/72"
+        >
+          <MessageSquareText className="h-4 w-4" />
+        </button>
       </div>
     </nav>
   );

@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { MessageSquareText } from "lucide-react";
 import { AccountSummaryCard } from "@/components/workspace/context/account-summary-card";
 import { ContextOnboardingNote } from "@/components/workspace/context/context-onboarding-note";
 import { PaperBalanceResetAction } from "@/components/workspace/context/paper-balance-reset-action";
@@ -12,14 +11,12 @@ import { useMarketUniverse } from "@/hooks/use-market-universe";
 import { usePaperAccountSummary } from "@/hooks/use-paper-account-summary";
 import { useWorkspaceAuth } from "@/hooks/use-workspace-auth";
 import { useWorkspaceShellState } from "@/hooks/use-workspace-shell-state";
-import { useUIStore } from "@/stores/ui-store";
 
 const EMPTY_MARKETS: MarketDirectoryItem[] = [];
 
 export function ContextIntelligencePanel() {
   const auth = useWorkspaceAuth();
   const workspace = useWorkspaceShellState();
-  const openAiChat = useUIStore((s) => s.openAiChat);
   const marketUniverse = useMarketUniverse();
   const paperSummary = usePaperAccountSummary();
 
@@ -43,15 +40,6 @@ export function ContextIntelligencePanel() {
             {activeMarket?.symbol ?? "Market"} · {workspace.activeTimeframe}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openAiChat}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border border-[var(--line)] bg-[var(--panel-2)] text-foreground/70 transition hover:bg-foreground/[0.05] hover:text-foreground/90"
-          aria-label="Open assistant"
-          title="Assistant"
-        >
-          <MessageSquareText className="h-4 w-4" />
-        </button>
       </div>
 
       {account ? (

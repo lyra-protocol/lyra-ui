@@ -79,8 +79,8 @@ export function WorkspaceAiChatModal() {
 
   return (
     <Dialog open={open} onOpenChange={(value) => (value ? null : close())}>
-      <DialogContent className="h-[min(80vh,820px)] overflow-hidden">
-        <DialogHeader className="border-b border-[var(--line)]">
+      <DialogContent className="h-[100dvh] w-[100dvw] max-w-none translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-none border-0 shadow-none">
+        <DialogHeader className="border-b border-[var(--line)] bg-[var(--panel)]">
           <DialogTitle>Assistant</DialogTitle>
           <p className="text-[11px] text-foreground/45">{currentThread?.title ?? "New thread"}</p>
         </DialogHeader>
