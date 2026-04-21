@@ -31,11 +31,14 @@ export type UseLyraSignalFeedOptions = {
   bufferSize?: number;
   /** Reconnect delay (ms) after a closed/errored socket. */
   reconnectDelayMs?: number;
+  /** Heartbeat interval (ms) to keep the socket alive behind proxies. */
+  heartbeatIntervalMs?: number;
 };
 
 export function useLyraSignalFeed(options: UseLyraSignalFeedOptions = {}) {
   const bufferSize = options.bufferSize ?? 400;
   const reconnectDelayMs = options.reconnectDelayMs ?? 1200;
+  const heartbeatIntervalMs = options.heartbeatIntervalMs ?? 25_000;
 
   const rawUrl = process.env.NEXT_PUBLIC_LYRA_SIGNAL_URL || DEFAULT_SIGNAL_URL;
   const wsUrl = useMemo(() => resolveWsUrl(rawUrl), [rawUrl]);
@@ -49,6 +52,7 @@ export function useLyraSignalFeed(options: UseLyraSignalFeedOptions = {}) {
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stoppedRef = useRef(false);
 
   useEffect(() => {
@@ -75,6 +79,15 @@ export function useLyraSignalFeed(options: UseLyraSignalFeedOptions = {}) {
       ws.onopen = () => {
         setStatus("open");
         setLastError(null);
+        if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+        heartbeatRef.current = setInterval(() => {
+          if (ws.readyState !== WebSocket.OPEN) return;
+          try {
+            ws.send(JSON.stringify({ type: "ping" }));
+          } catch {
+            // ignore — next close will reconnect
+          }
+        }, heartbeatIntervalMs);
       };
 
       ws.onmessage = (event) => {
@@ -103,6 +116,10 @@ export function useLyraSignalFeed(options: UseLyraSignalFeedOptions = {}) {
       };
 
       ws.onclose = () => {
+        if (heartbeatRef.current) {
+          clearInterval(heartbeatRef.current);
+          heartbeatRef.current = null;
+        }
         if (stoppedRef.current) return;
         setStatus("reconnecting");
         scheduleReconnect();
@@ -119,6 +136,10 @@ export function useLyraSignalFeed(options: UseLyraSignalFeedOptions = {}) {
     return () => {
       stoppedRef.current = true;
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
+        heartbeatRef.current = null;
+      }
       if (socketRef.current) {
         try {
           socketRef.current.close();
@@ -128,7 +149,7 @@ export function useLyraSignalFeed(options: UseLyraSignalFeedOptions = {}) {
         socketRef.current = null;
       }
     };
-  }, [wsUrl, bufferSize, reconnectDelayMs]);
+  }, [wsUrl, bufferSize, reconnectDelayMs, heartbeatIntervalMs]);
 
   const sendPing = () => {
     const ws = socketRef.current;
