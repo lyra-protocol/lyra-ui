@@ -39,10 +39,10 @@ export function ActivityRail() {
   return (
     <nav
       aria-label="Workspace sections"
-      className="flex h-full w-12 flex-col border-r border-black/8 bg-background"
+      className="flex h-full w-12 flex-col border-r border-[var(--line)] bg-[var(--panel)]"
     >
-      <div className="flex h-11 items-center justify-center border-b border-black/8">
-        <span className="text-[10px] font-semibold tracking-[0.22em] text-black/78">LY</span>
+      <div className="flex h-11 items-center justify-center border-b border-[var(--line)]">
+        <span className="text-[10px] font-semibold tracking-[0.22em] text-foreground/80">LY</span>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col py-1">
@@ -61,8 +61,8 @@ export function ActivityRail() {
               className={[
                 "relative flex h-10 items-center justify-center border-l-2 transition",
                 active
-                  ? "border-black text-black"
-                  : "border-transparent text-black/44 hover:bg-black/[0.02] hover:text-black/72",
+                  ? "border-foreground text-foreground"
+                  : "border-transparent text-foreground/45 hover:bg-foreground/[0.04] hover:text-foreground/80",
               ].join(" ")}
             >
               <Icon className="h-4 w-4" />
@@ -71,7 +71,7 @@ export function ActivityRail() {
         })}
 
         <div className="mt-1 px-2">
-          <div className="h-px w-full bg-black/8" />
+          <div className="h-px w-full bg-[var(--line)]" />
         </div>
 
         <button
@@ -79,7 +79,7 @@ export function ActivityRail() {
           onClick={openAiChat}
           aria-label="Assistant"
           title="Assistant"
-          className="relative flex h-10 items-center justify-center border-l-2 border-transparent text-black/44 transition hover:bg-black/[0.02] hover:text-black/72"
+          className="relative flex h-10 items-center justify-center border-l-2 border-transparent text-foreground/45 transition hover:bg-foreground/[0.04] hover:text-foreground/80"
         >
           <MessageSquareText className="h-4 w-4" />
         </button>
