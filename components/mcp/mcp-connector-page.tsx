@@ -5,6 +5,7 @@ import { Check, Copy, RefreshCw } from "lucide-react";
 import { BulkTopBar } from "@/components/workspace/bulk/bulk-top-bar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useWorkspaceAuth } from "@/hooks/use-workspace-auth";
 import { buildMcpConnectorUrls, normalizeMcpBaseUrl } from "@/lib/mcp-connector-url";
 
 function newSessionId(): string {
@@ -15,11 +16,14 @@ function newSessionId(): string {
 }
 
 export function McpConnectorPage() {
+  const { ready, authenticated, login, getAccessToken } = useWorkspaceAuth();
   const baseFromEnv = process.env.NEXT_PUBLIC_LYRA_MCP_BASE_URL ?? "";
   const base = baseFromEnv ? normalizeMcpBaseUrl(baseFromEnv) : "";
 
   const [sessionId, setSessionId] = useState(() => newSessionId());
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [mintLoading, setMintLoading] = useState(false);
+  const [mintMessage, setMintMessage] = useState<string | null>(null);
 
   const urls = useMemo(
     () => (base ? buildMcpConnectorUrls(sessionId, base) : null),
@@ -41,7 +45,40 @@ export function McpConnectorPage() {
   const regenerate = useCallback(() => {
     setSessionId(newSessionId());
     setCopiedField(null);
+    setMintMessage(null);
   }, []);
+
+  const mintServerToken = useCallback(async () => {
+    setMintMessage(null);
+    setMintLoading(true);
+    try {
+      const accessToken = await getAccessToken();
+      const res = await fetch("/api/mcp/token", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const body = (await res.json()) as {
+        ok?: boolean;
+        token?: string;
+        error?: string;
+        hint?: string | null;
+      };
+      if (!res.ok || !body.ok || !body.token) {
+        throw new Error(body.error ?? "Could not mint token.");
+      }
+      setSessionId(body.token);
+      setCopiedField(null);
+      setMintMessage(
+        body.hint
+          ? `Token ready. ${body.hint}`
+          : "Server token minted — this value is what Claude sends as ?session= (trading MCP + Supabase).",
+      );
+    } catch (e) {
+      setMintMessage(e instanceof Error ? e.message : "Mint failed.");
+    } finally {
+      setMintLoading(false);
+    }
+  }, [getAccessToken]);
 
   return (
     <main className="flex min-h-[100dvh] flex-col bg-background text-foreground">
@@ -49,8 +86,12 @@ export function McpConnectorPage() {
       <div className="mx-auto w-full max-w-lg flex-1 px-4 py-10 md:py-14">
         <h1 className="text-lg font-medium tracking-tight">Lyra MCP</h1>
         <p className="mt-1 text-[12px] leading-relaxed text-foreground/55">
-          Generate a session, copy the connector URL, then add it in Claude → Settings →
-          Connectors → Add custom connector (Streamable HTTP).
+          For{" "}
+          <span className="text-foreground/70">
+            <code className="text-[10px]">LYRA_MCP_MODE=trading</code>
+          </span>
+          , mint a server token while signed in so the MCP can load your Lyra rows from Supabase.
+          For Lens-only mode, a random browser session id is still fine.
         </p>
 
         {!base ? (
@@ -69,11 +110,41 @@ export function McpConnectorPage() {
           </Card>
         ) : null}
 
+        <Card className="mt-6 border-[var(--line)] bg-[var(--panel)] p-4 md:p-5">
+          <div className="text-[10px] font-medium uppercase tracking-wide text-foreground/45">
+            Trading MCP (Supabase)
+          </div>
+          <p className="mt-1 text-[10px] leading-relaxed text-foreground/50">
+            Railway must set <code className="text-foreground/70">LYRA_MCP_MODE=trading</code> plus the same
+            Supabase URL and service key as this app.
+          </p>
+          {!ready ? (
+            <p className="mt-3 text-[10px] text-foreground/45">Checking session…</p>
+          ) : !authenticated ? (
+            <Button type="button" size="sm" className="mt-3" onClick={() => void login()}>
+              Sign in to mint token
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              className="mt-3"
+              disabled={mintLoading}
+              onClick={() => void mintServerToken()}
+            >
+              {mintLoading ? "Minting…" : "Mint Lyra MCP token"}
+            </Button>
+          )}
+          {mintMessage ? (
+            <p className="mt-3 text-[10px] leading-relaxed text-foreground/70">{mintMessage}</p>
+          ) : null}
+        </Card>
+
         <Card className="mt-8 p-4 md:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-[10px] font-medium uppercase tracking-wide text-foreground/45">
-                Session id
+                Session / token
               </div>
               <div className="mt-1 font-mono text-[11px] text-foreground/90 break-all">
                 {sessionId}
@@ -159,8 +230,8 @@ export function McpConnectorPage() {
         </ol>
 
         <p className="mt-6 text-[10px] text-foreground/40">
-          Sessions are generated in the browser for now; wire a friend API later to mint and
-          validate tokens server-side.
+          Random ids are for Lens / local experiments. Trading mode requires a minted token (see
+          above) so Supabase can resolve your workspace user.
         </p>
       </div>
     </main>
