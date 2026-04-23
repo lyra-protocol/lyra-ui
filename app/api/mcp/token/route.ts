@@ -19,9 +19,7 @@ export async function POST(request: Request) {
       token,
       connectorUrlWithQuery: urls?.withQuery ?? null,
       connectorUrlWithPath: urls?.withPath ?? null,
-      hint: base
-        ? null
-        : "Set NEXT_PUBLIC_LYRA_MCP_BASE_URL (MCP origin, no trailing slash) to include ready-to-paste Claude URLs.",
+      hint: base ? null : "connector_urls_deferred",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to mint MCP token.";
