@@ -7,8 +7,12 @@ import { executePaperTrade } from "@/core/server/services/paper-trade-service";
 
 function normalizeTradeErrorMessage(message: string) {
   const lower = message.toLowerCase();
-  if (lower.includes("one of 1x, 2x, or 3x") || lower.includes("leverage") && lower.includes("3x")) {
-    return "Leverage rejected by the paper engine. Try a lower value or check PAPER_MAX_LEVERAGE / DB limits.";
+  if (
+    lower.includes("one of 1x, 2x, or 3x") ||
+    (lower.includes("leverage") && lower.includes("3x")) ||
+    lower.includes("leverage") && lower.includes("allowed")
+  ) {
+    return "Leverage is higher than this database allows (often 3× until migrations are applied). Lower leverage on the ticket, or raise the limit in Postgres / PAPER_MAX_LEVERAGE to match.";
   }
 
   return message;

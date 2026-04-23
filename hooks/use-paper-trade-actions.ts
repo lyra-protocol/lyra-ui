@@ -69,6 +69,7 @@ export function usePaperTradeActions() {
       queryClient.setQueryData<PaperWorkspaceContext | undefined>(queryKey, (previous) =>
         mergeWorkspaceTradeResult(previous, result, input)
       );
+      void queryClient.invalidateQueries({ queryKey: workspaceContextQueryKey });
     },
   });
 }

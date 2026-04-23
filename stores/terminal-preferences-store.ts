@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { PAPER_LEVERAGE_DEFAULT, PAPER_LEVERAGE_MAX, PAPER_LEVERAGE_MIN } from "@/core/paper/leverage";
+
 export type MarginMode = "cross" | "isolated";
 export type PositionMode = "one-way" | "hedge";
 export type PriceReference = "mark" | "oracle";
@@ -29,14 +31,20 @@ export const useTerminalPreferencesStore = create<TerminalPreferencesState>()(
   persist(
     (set) => ({
       marginMode: "cross",
-      leverage: 10,
+      leverage: PAPER_LEVERAGE_DEFAULT,
       positionMode: "one-way",
       priceReference: "oracle",
       chartOverlay: "chart",
       indicators: ["volume"],
       logScale: false,
       setMarginMode: (marginMode) => set({ marginMode }),
-      setLeverage: (leverage) => set({ leverage: Math.max(1, Math.min(50, leverage)) }),
+      setLeverage: (leverage) =>
+        set({
+          leverage: Math.max(
+            PAPER_LEVERAGE_MIN,
+            Math.min(PAPER_LEVERAGE_MAX, Math.round(Number(leverage)) || PAPER_LEVERAGE_MIN),
+          ),
+        }),
       setPositionMode: (positionMode) => set({ positionMode }),
       setPriceReference: (priceReference) => set({ priceReference }),
       setChartOverlay: (chartOverlay) => set({ chartOverlay }),
@@ -50,7 +58,18 @@ export const useTerminalPreferencesStore = create<TerminalPreferencesState>()(
     }),
     {
       name: "lyra-terminal-preferences",
-      version: 1,
+      version: 2,
+      migrate: (persisted) => {
+        const root = persisted as { state?: { leverage?: number } } | undefined;
+        const lev = root?.state?.leverage;
+        if (typeof lev !== "number" || !Number.isFinite(lev) || lev <= PAPER_LEVERAGE_MAX) {
+          return persisted as never;
+        }
+        return {
+          ...root,
+          state: { ...root!.state!, leverage: PAPER_LEVERAGE_MAX },
+        } as never;
+      },
     }
   )
 );

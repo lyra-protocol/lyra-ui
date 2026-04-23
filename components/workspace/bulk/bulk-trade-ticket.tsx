@@ -32,6 +32,7 @@ import { useWorkspaceAuth } from "@/hooks/use-workspace-auth";
 import {
   getApproxLiquidationPrice,
   getEffectivePositionNotional,
+  getPaperLeverageMarks,
   isSupportedPaperLeverage,
 } from "@/core/paper/leverage";
 import {
@@ -124,7 +125,6 @@ const ORDER_TYPES: OrderTypeMeta[] = [
   },
 ];
 
-const LEVERAGE_MARKS = [1, 5, 10, 20, 30, 50];
 const SIZE_PRESETS = [25, 50, 75, 100];
 
 function parseNumber(input: string): number {
@@ -135,6 +135,74 @@ function parseNumber(input: string): number {
 function parseLevel(input: string): number | null {
   const value = Number(input);
   return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** Single-price paper fill: market, limit, stop-market, stop-limit (simplified). */
+function resolvePaperOpenExecution(args: {
+  orderType: OrderType;
+  direction: "long" | "short";
+  mark: number;
+  limitPrice: string;
+  stopPrice: string;
+}): { ok: true; price: number } | { ok: false; message: string } {
+  const { orderType, direction, mark, limitPrice, stopPrice } = args;
+  if (mark <= 0) {
+    return { ok: false, message: "No live price for this market yet." };
+  }
+
+  if (orderType === "market") {
+    return { ok: true, price: mark };
+  }
+
+  if (orderType === "limit") {
+    const lp = parseLevel(limitPrice);
+    if (!lp) {
+      return { ok: false, message: "Enter a limit price to place this order." };
+    }
+    const fill = direction === "long" ? Math.min(mark, lp) : Math.max(mark, lp);
+    return { ok: true, price: fill };
+  }
+
+  if (orderType === "stop-market") {
+    const sp = parseLevel(stopPrice);
+    if (!sp) {
+      return { ok: false, message: "Enter a stop price." };
+    }
+    const triggered = direction === "long" ? mark >= sp : mark <= sp;
+    if (!triggered) {
+      return {
+        ok: false,
+        message:
+          direction === "long"
+            ? "Stop hasn’t triggered yet (mark is still below your stop). Use Market to buy now, or lower the stop."
+            : "Stop hasn’t triggered yet (mark is still above your stop). Use Market to sell now, or raise the stop.",
+      };
+    }
+    return { ok: true, price: mark };
+  }
+
+  if (orderType === "stop-limit") {
+    const sp = parseLevel(stopPrice);
+    const lp = parseLevel(limitPrice);
+    if (!sp) {
+      return { ok: false, message: "Enter a stop price." };
+    }
+    if (!lp) {
+      return { ok: false, message: "Enter a limit price." };
+    }
+    const triggered = direction === "long" ? mark >= sp : mark <= sp;
+    if (!triggered) {
+      return {
+        ok: false,
+        message:
+          "Stop hasn’t triggered yet. Use Market to trade at the current price, or adjust your stop.",
+      };
+    }
+    const fill = direction === "long" ? Math.min(mark, lp) : Math.max(mark, lp);
+    return { ok: true, price: fill };
+  }
+
+  return { ok: false, message: "This order type isn’t available in paper mode yet. Use Market or Limit." };
 }
 
 function tabClass(active: boolean) {
@@ -245,6 +313,10 @@ export function BulkTradeTicket() {
   }, [leverage, maxLeverage, setLeverage]);
 
   useEffect(() => {
+    setStrategyNotice(null);
+  }, [orderType]);
+
+  useEffect(() => {
     if (!activePosition) {
       setPositionStopLoss("");
       setPositionTakeProfit("");
@@ -266,6 +338,8 @@ export function BulkTradeTicket() {
   const sliderPercent =
     cashBalance > 0 ? Math.min(1, notional / cashBalance) : 0;
 
+  const leverageQuickMarks = useMemo(() => getPaperLeverageMarks(maxLeverage), [maxLeverage]);
+
   const canTrade =
     auth.authenticated &&
     Boolean(activeProductId) &&
@@ -273,35 +347,44 @@ export function BulkTradeTicket() {
     notional > 0 &&
     notional <= cashBalance &&
     isSupportedPaperLeverage(leverage, maxLeverage) &&
-    !tradeMutation.isPending &&
-    !reduceOnly;
+    !tradeMutation.isPending;
 
   const submit = (nextDirection: "long" | "short") => {
-    if (!canTrade) return;
+    if (!canTrade || !activeProductId) return;
+    tradeMutation.reset();
     setDirection(nextDirection);
     const symbol = activeProductId.replace(/-USD$/i, "");
 
-    if (orderType !== "market") {
-      // Non-market strategies are designed here and executed by the backend
-      // worker. Surface a clear notice until the corresponding engine lands.
-      setStrategyNotice(
-        `${ORDER_TYPES.find((type) => type.id === orderType)?.label ?? orderType} order saved as a pending strategy. Execution engine is rolling out — Market still fills live.`
-      );
+    const resolved = resolvePaperOpenExecution({
+      orderType,
+      direction: nextDirection,
+      mark: price,
+      limitPrice,
+      stopPrice,
+    });
+
+    if (!resolved.ok) {
+      setStrategyNotice(resolved.message);
       return;
     }
 
-    tradeMutation.mutate({
-      action: "open",
-      productId: activeProductId,
-      symbol,
-      direction: nextDirection,
-      notional,
-      leverage,
-      price,
-      stopLoss: tpsl ? parsedStopLoss : null,
-      takeProfit: tpsl ? parsedTakeProfit : null,
-      note: `Opened from terminal`,
-    });
+    tradeMutation.mutate(
+      {
+        action: "open",
+        productId: activeProductId,
+        symbol,
+        direction: nextDirection,
+        notional,
+        leverage,
+        price: resolved.price,
+        stopLoss: tpsl ? parsedStopLoss : null,
+        takeProfit: tpsl ? parsedTakeProfit : null,
+        note: `Paper ${orderType} · terminal`,
+      },
+      {
+        onSuccess: () => setStrategyNotice(null),
+      }
+    );
   };
 
   const liquidationPrice = activePosition
@@ -447,7 +530,7 @@ export function BulkTradeTicket() {
             className="w-full accent-yellow-400"
           />
           <div className="mt-1 grid grid-cols-6 gap-0.5 text-[10px] text-foreground/45">
-            {LEVERAGE_MARKS.filter((mark) => mark <= maxLeverage).map((mark) => (
+            {leverageQuickMarks.map((mark) => (
               <button
                 key={mark}
                 type="button"
@@ -795,17 +878,17 @@ function OrderTypeTabs({
 
   useEffect(() => {
     if (!proOpen) return;
-    const onClick = (event: MouseEvent) => {
+    const onPointer = (event: PointerEvent) => {
       if (!containerRef.current) return;
       if (!containerRef.current.contains(event.target as Node)) setProOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setProOpen(false);
     };
-    document.addEventListener("mousedown", onClick);
+    document.addEventListener("pointerdown", onPointer, true);
     window.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("pointerdown", onPointer, true);
       window.removeEventListener("keydown", onKey);
     };
   }, [proOpen]);
@@ -815,7 +898,7 @@ function OrderTypeTabs({
   const proOptions = ORDER_TYPES.filter((type) => type.group === "pro");
 
   return (
-    <div className="flex items-center gap-5 border-b border-[var(--line)] px-3 text-[12px]">
+    <div className="relative z-[200] flex shrink-0 items-center gap-5 border-b border-[var(--line)] bg-[var(--panel)] px-3 text-[12px]">
       {(["market", "limit"] as const).map((id) => (
         <button
           key={id}
@@ -850,7 +933,7 @@ function OrderTypeTabs({
           ) : null}
         </button>
         {proOpen ? (
-          <div className="absolute right-0 top-[calc(100%+4px)] z-40 w-[280px] overflow-hidden rounded-[10px] border border-[var(--line-strong)] bg-[var(--panel)] shadow-[0_18px_48px_rgba(0,0,0,0.4)]">
+          <div className="absolute right-0 top-[calc(100%+4px)] z-[220] w-[280px] overflow-hidden rounded-[10px] border border-[var(--line-strong)] bg-[var(--panel)] shadow-[0_18px_48px_rgba(0,0,0,0.4)]">
             <div className="border-b border-[var(--line)] bg-[var(--panel-2)] px-3 py-1.5 text-[9px] uppercase tracking-wider text-foreground/40">
               Pro strategies
             </div>
@@ -1220,7 +1303,7 @@ function LeveragePopover({
 }) {
   const [draft, setDraft] = useState(leverage);
   useEffect(() => setDraft(leverage), [leverage]);
-  const marks = [1, 5, 10, 20, 30, 50].filter((mark) => mark <= maxLeverage);
+  const marks = getPaperLeverageMarks(maxLeverage);
 
   return (
     <TerminalPopover

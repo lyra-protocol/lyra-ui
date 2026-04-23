@@ -3,25 +3,22 @@ import {
   mintLyraMcpConnectorToken,
   revokeLyraMcpConnectorTokens,
 } from "@/core/server/services/mcp-token-service";
-import { buildMcpConnectorUrls, normalizeMcpBaseUrl } from "@/lib/mcp-connector-url";
+import { buildMcpConnectorUrls, resolveLyraMcpPublicOrigin } from "@/lib/mcp-connector-url";
 
 export async function POST(request: Request) {
   try {
     const auth = await authenticatePrivyRequest(request);
     const { token } = await mintLyraMcpConnectorToken(auth.privyUserId);
 
-    const baseRaw = process.env.NEXT_PUBLIC_LYRA_MCP_BASE_URL?.trim() ?? "";
-    const base = baseRaw ? normalizeMcpBaseUrl(baseRaw) : "";
-    const urls = base ? buildMcpConnectorUrls(token, base) : null;
+    const base = resolveLyraMcpPublicOrigin(process.env.NEXT_PUBLIC_LYRA_MCP_BASE_URL);
+    const urls = buildMcpConnectorUrls(token, base);
 
     return Response.json({
       ok: true,
       token,
-      connectorUrlWithQuery: urls?.withQuery ?? null,
-      connectorUrlWithPath: urls?.withPath ?? null,
-      hint: base
-        ? null
-        : "Set NEXT_PUBLIC_LYRA_MCP_BASE_URL (MCP origin, no trailing slash) to include ready-to-paste Claude URLs.",
+      connectorUrlWithQuery: urls.withQuery,
+      connectorUrlWithPath: urls.withPath,
+      hint: null,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to mint MCP token.";

@@ -4,10 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
-  BookOpen,
+  ArrowRight,
   Check,
+  ChevronRight,
   Copy,
   ExternalLink,
+  Info,
   RefreshCw,
   Sparkles,
 } from "lucide-react";
@@ -17,7 +19,12 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkspaceAuth } from "@/hooks/use-workspace-auth";
-import { buildMcpConnectorUrls, normalizeMcpBaseUrl } from "@/lib/mcp-connector-url";
+import {
+  buildMcpConnectorUrls,
+  LYRA_MCP_DEFAULT_PUBLIC_ORIGIN,
+  resolveLyraMcpPublicOrigin,
+} from "@/lib/mcp-connector-url";
+import { cn } from "@/lib/utils";
 
 const ANTHROPIC_REMOTE_MCP_GUIDE =
   "https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp";
@@ -35,10 +42,17 @@ function shortenWallet(value: string | null | undefined) {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;
 }
 
+function StepBadge({ n }: { n: number }) {
+  return (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground text-[13px] font-semibold text-background shadow-sm">
+      {n}
+    </span>
+  );
+}
+
 export function McpConnectorPage() {
   const { ready, authenticated, login, logout, getAccessToken, walletAddress } = useWorkspaceAuth();
-  const baseFromEnv = process.env.NEXT_PUBLIC_LYRA_MCP_BASE_URL ?? "";
-  const base = baseFromEnv ? normalizeMcpBaseUrl(baseFromEnv) : "";
+  const base = resolveLyraMcpPublicOrigin(process.env.NEXT_PUBLIC_LYRA_MCP_BASE_URL);
 
   const [sessionId, setSessionId] = useState(() => newSessionId());
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -46,16 +60,18 @@ export function McpConnectorPage() {
   const [revokeLoading, setRevokeLoading] = useState(false);
   const [mintMessage, setMintMessage] = useState<string | null>(null);
 
-  const urls = useMemo(
-    () => (base ? buildMcpConnectorUrls(sessionId, base) : null),
-    [base, sessionId],
-  );
+  const urls = useMemo(() => buildMcpConnectorUrls(sessionId, base), [base, sessionId]);
 
-  const primaryUrl = urls?.withQuery ?? "";
+  const primaryUrl = urls.withQuery;
   const isMintedTradingToken = sessionId.startsWith("lyt_");
   const [siteOrigin, setSiteOrigin] = useState("");
+  const [previewHost, setPreviewHost] = useState(false);
   useEffect(() => {
     setSiteOrigin(window.location.origin);
+    const h = window.location.hostname;
+    setPreviewHost(
+      h.endsWith(".vercel.app") || h === "localhost" || h === "127.0.0.1" || h === "[::1]"
+    );
   }, []);
   const shareableInstallHref = siteOrigin
     ? `${siteOrigin}/mcp/install?token=${encodeURIComponent(sessionId)}`
@@ -97,22 +113,18 @@ export function McpConnectorPage() {
       }
       setSessionId(body.token);
       setCopiedField(null);
-      setMintMessage(
-        body.hint
-          ? `Token ready. ${body.hint}`
-          : "Server token saved. Use the connector URL below in Claude — this ties the MCP to your Lyra workspace (Supabase).",
-      );
+      setMintMessage("You’re set — copy the connector link below and add it in Claude.");
     } catch (e) {
-      setMintMessage(e instanceof Error ? e.message : "Mint failed.");
+      setMintMessage(e instanceof Error ? e.message : "Something went wrong. Try again in a moment.");
     } finally {
       setMintLoading(false);
     }
-  }, [getAccessToken]);
+  }, []);
 
   const revokeServerTokens = useCallback(async () => {
     if (
       !window.confirm(
-        "Revoke all Lyra MCP tokens for your account? Claude connectors using the old URL will stop until you mint a new token.",
+        "Revoke all Lyra MCP tokens for your account? Claude will stop working with old links until you create a new token.",
       )
     ) {
       return;
@@ -130,9 +142,9 @@ export function McpConnectorPage() {
         throw new Error(body.error ?? "Revoke failed.");
       }
       setSessionId(newSessionId());
-      setMintMessage("All MCP tokens revoked. Mint a new one when you are ready.");
+      setMintMessage("Previous tokens are no longer valid. Create a new one whenever you’re ready.");
     } catch (e) {
-      setMintMessage(e instanceof Error ? e.message : "Revoke failed.");
+      setMintMessage(e instanceof Error ? e.message : "Couldn’t revoke tokens.");
     } finally {
       setRevokeLoading(false);
     }
@@ -141,365 +153,364 @@ export function McpConnectorPage() {
   const healthUrl = base ? `${base}/health` : "";
 
   return (
-    <main className="flex min-h-[100dvh] flex-col bg-background text-foreground">
+    <main className="relative flex min-h-[100dvh] flex-col overflow-x-hidden bg-background text-foreground">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[min(52vh,28rem)] bg-gradient-to-b from-foreground/[0.07] via-transparent to-transparent"
+        aria-hidden
+      />
       <BulkTopBar />
-      <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-10 md:py-16">
-        {/* Hero — aligns with docs/lyra-technical-spec.md §1 / §6 F2,F6 */}
-        <div className="rounded-xl border border-[var(--line)] bg-gradient-to-b from-[var(--panel)] to-background px-5 py-6 md:px-7 md:py-8">
-          <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-wide text-foreground/45">
-            <Sparkles className="h-3.5 w-3.5 text-foreground/50" aria-hidden />
-            Claude · Streamable HTTP MCP
+      <div className="relative mx-auto w-full max-w-3xl flex-1 px-5 pb-20 pt-10 sm:px-8 sm:pt-14 md:pb-28">
+        {previewHost ? (
+          <div
+            className="mb-10 flex gap-4 rounded-2xl border border-foreground/[0.08] bg-[var(--panel)]/90 px-5 py-4 shadow-sm backdrop-blur-sm sm:items-start sm:px-6 sm:py-5"
+            role="status"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-foreground/[0.06] text-foreground/70">
+              <Info className="h-5 w-5" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1 space-y-2">
+              <p className="text-[15px] font-medium leading-snug tracking-tight text-foreground">
+                Preview — not fully wired to production Lyra
+              </p>
+              <p className="text-[13px] leading-relaxed text-foreground/60">
+                You’re on a preview-style host. The Claude connector URLs below still use Lyra’s default MCP
+                endpoint — you don’t need to set any environment variable for them to appear.
+              </p>
+              <details className="group pt-1">
+                <summary className="cursor-pointer list-none text-[12px] font-medium text-foreground/45 outline-none transition hover:text-foreground/70 [&::-webkit-details-marker]:hidden">
+                  <span className="inline-flex items-center gap-1">
+                    Hosting note (operators)
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 transition group-open:rotate-90" aria-hidden />
+                  </span>
+                </summary>
+                <div className="mt-3 space-y-2 text-[12px] leading-relaxed text-foreground/50">
+                  <p>
+                    Default MCP origin (hardcoded for this app):{" "}
+                    <span className="font-mono text-[11px] text-foreground/65">{LYRA_MCP_DEFAULT_PUBLIC_ORIGIN}</span>
+                  </p>
+                  <p>
+                    To use a different MCP host (e.g. a custom domain in front of Railway), set{" "}
+                    <span className="font-mono text-[11px]">NEXT_PUBLIC_LYRA_MCP_BASE_URL</span> at build time —
+                    no trailing slash. Ensure that host is listed in the MCP server’s allowed hosts.
+                  </p>
+                </div>
+              </details>
+            </div>
           </div>
-          <h1 className="mt-2 text-xl font-medium tracking-tight text-foreground md:text-2xl">
-            Connect Claude to Lyra
-          </h1>
-          <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-foreground/60 md:text-[14px]">
-            Trade on Solana with Claude — rule-backed tools, paper execution today, live execution on the
-            roadmap. This page is the <strong className="text-foreground/80">install hub</strong>: mint a
-            secure token, copy one URL into Claude, then follow the steps below.
-          </p>
-        </div>
-
-        <div className="mt-8 grid gap-3 text-[12px] leading-relaxed text-foreground/55 md:grid-cols-2">
-          <Card className="border-[var(--line)] bg-[var(--panel)] p-4">
-            <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-wide text-foreground/45">
-              <BookOpen className="h-3.5 w-3.5" aria-hidden />
-              Trading MCP
-            </div>
-            <p className="mt-2">
-              Sign in here, mint a <code className="text-[10px] text-foreground/75">lyt_…</code> token, paste
-              the connector URL into Claude. The MCP server must run with{" "}
-              <code className="text-[10px] text-foreground/75">LYRA_MCP_MODE=trading</code> and Supabase keys
-              (same project as this app).
-            </p>
-          </Card>
-          <Card className="border-[var(--line)] bg-[var(--panel)] p-4">
-            <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-wide text-foreground/45">
-              Lens / dev
-            </div>
-            <p className="mt-2">
-              <strong className="text-foreground/70">Random session</strong> is only for{" "}
-              <code className="text-[10px] text-foreground/75">LYRA_MCP_MODE=lens</code> experiments. It is
-              not stored in Supabase. Prefer a minted token for anything real.
-            </p>
-          </Card>
-        </div>
-
-        {!base ? (
-          <Card className="mt-8 border-[var(--negative)]/35 bg-[var(--panel)] p-4 md:p-5">
-            <p className="text-[12px] leading-relaxed text-foreground/80">
-              Set{" "}
-              <code className="rounded bg-foreground/[0.08] px-1.5 py-0.5 text-[11px]">
-                NEXT_PUBLIC_LYRA_MCP_BASE_URL
-              </code>{" "}
-              in Vercel to your MCP origin (no trailing slash), e.g.{" "}
-              <code className="rounded bg-foreground/[0.08] px-1.5 py-0.5 text-[11px]">
-                https://lyra-mcp-production.up.railway.app
-              </code>
-              , then redeploy this site so connector URLs can be generated.
-            </p>
-          </Card>
         ) : null}
 
-        <section className="mt-10">
-          <h2 className="text-[11px] font-medium uppercase tracking-wide text-foreground/45">
-            Step 1 — Generate your session
-          </h2>
-          <Card className="mt-3 border-[var(--line)] p-4 md:p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <header className="text-center sm:text-left">
+          <p className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-foreground/40">
+            <Sparkles className="h-3.5 w-3.5 text-foreground/45" aria-hidden />
+            Lyra for Claude
+          </p>
+          <h1 className="mt-3 text-balance text-[1.75rem] font-semibold leading-[1.15] tracking-tight text-foreground sm:text-4xl sm:leading-[1.1]">
+            Connect Claude in one calm flow
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-pretty text-[15px] leading-relaxed text-foreground/55 sm:mx-0 sm:text-[16px]">
+            Lyra gives Claude structured tools for your Solana workspace — starting with paper execution and
+            clear rules. Sign in, create a short-lived token, paste one URL into Claude, and you’re done.
+          </p>
+        </header>
+
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-3 sm:justify-start">
+          <span className="rounded-full border border-foreground/[0.08] bg-foreground/[0.04] px-4 py-1.5 text-[12px] text-foreground/65">
+            Recommended: minted token + trading MCP
+          </span>
+          <span className="rounded-full border border-transparent px-2 text-[12px] text-foreground/40">
+            Advanced: random session for Lens-only servers
+          </span>
+        </div>
+
+        <section className="mt-14 space-y-12">
+          <div className="flex gap-5">
+            <StepBadge n={1} />
+            <div className="min-w-0 flex-1 space-y-4">
               <div>
-                <p className="text-[12px] leading-relaxed text-foreground/60">
-                  {authenticated ? (
-                    <>
-                      Signed in
-                      {walletAddress ? (
-                        <>
-                          {" "}
-                          · linked wallet{" "}
-                          <span className="font-mono text-[11px] text-foreground/80">
-                            {shortenWallet(walletAddress)}
-                          </span>
-                        </>
-                      ) : null}
-                    </>
-                  ) : (
-                    <>Sign in with the same account you use in Lyra Terminal so we can mint a server token.</>
-                  )}
+                <h2 className="text-[17px] font-semibold tracking-tight text-foreground">Create your access</h2>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-foreground/55">
+                  {authenticated
+                    ? walletAddress
+                      ? `Signed in · ${shortenWallet(walletAddress)}`
+                      : "Signed in — you can mint a token for Claude."
+                    : "Use the same Lyra account you use in the terminal so we can attach this connector to you."}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {!ready ? (
-                    <span className="text-[11px] text-foreground/45">Checking session…</span>
-                  ) : !authenticated ? (
-                    <Button type="button" size="sm" onClick={() => void login()}>
-                      Sign in to mint token
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={mintLoading}
-                        onClick={() => void mintServerToken()}
-                      >
-                        {mintLoading ? "Minting…" : "Mint Lyra MCP token"}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        disabled={revokeLoading}
-                        onClick={() => void revokeServerTokens()}
-                      >
-                        {revokeLoading ? "Revoking…" : "Revoke MCP tokens"}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="text-foreground/50"
-                        onClick={() => void logout()}
-                      >
-                        Sign out
-                      </Button>
-                    </>
-                  )}
-                </div>
               </div>
-              <div className="rounded-md border border-dashed border-[var(--line)] bg-[var(--panel-2)] px-3 py-2 sm:max-w-[220px]">
-                <div className="text-[9px] font-medium uppercase tracking-wide text-foreground/40">
-                  Optional (Lens)
-                </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {!ready ? (
+                  <span className="text-[13px] text-foreground/45">Checking session…</span>
+                ) : !authenticated ? (
+                  <Button type="button" size="default" className="rounded-full px-6" onClick={() => void login()}>
+                    Sign in
+                    <ArrowRight className="ml-1 h-4 w-4" aria-hidden />
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      size="default"
+                      className="rounded-full px-6"
+                      disabled={mintLoading}
+                      onClick={() => void mintServerToken()}
+                    >
+                      {mintLoading ? "Creating…" : "Create Lyra token"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="rounded-full border border-foreground/10 bg-transparent"
+                      disabled={revokeLoading}
+                      onClick={() => void revokeServerTokens()}
+                    >
+                      {revokeLoading ? "Revoking…" : "Revoke tokens"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="rounded-full text-foreground/45 hover:text-foreground/70"
+                      onClick={() => void logout()}
+                    >
+                      Sign out
+                    </Button>
+                  </>
+                )}
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="ghost"
                   size="sm"
-                  className="mt-2 w-full gap-1"
+                  className="rounded-full text-foreground/40 hover:text-foreground/65"
                   onClick={regenerate}
                 >
-                  <RefreshCw className="h-3 w-3" aria-hidden />
-                  New random session
+                  <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden />
+                  New dev session
                 </Button>
               </div>
-            </div>
-            {mintMessage ? (
-              <p className="mt-4 text-[11px] leading-relaxed text-foreground/70">{mintMessage}</p>
-            ) : null}
-            <Separator className="my-5 bg-[var(--line)]" />
-            <div className="text-[10px] font-medium uppercase tracking-wide text-foreground/45">
-              Active session / token
-            </div>
-            <p className="mt-1 font-mono text-[11px] leading-relaxed text-foreground/90 break-all">
-              {sessionId}
-            </p>
-            {isMintedTradingToken && shareableInstallHref ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="gap-1"
-                  onClick={() => void copy("install", shareableInstallHref)}
-                >
-                  {copiedField === "install" ? (
-                    <Check className="h-3 w-3" aria-hidden />
-                  ) : (
-                    <Copy className="h-3 w-3" aria-hidden />
-                  )}
-                  Copy shareable install link
-                </Button>
-                <Button type="button" variant="ghost" size="sm" className="text-foreground/55" asChild>
-                  <Link href={`/mcp/install?token=${encodeURIComponent(sessionId)}`}>
-                    Open install-only page
-                  </Link>
-                </Button>
-              </div>
-            ) : null}
-          </Card>
-        </section>
-
-        <section className="mt-10">
-          <h2 className="text-[11px] font-medium uppercase tracking-wide text-foreground/45">
-            Step 2 — Copy connector URL
-          </h2>
-          <p className="mt-2 text-[12px] text-foreground/55">
-            Claude expects the <strong className="text-foreground/75">full Streamable HTTP URL</strong>{" "}
-            (not just the host). Prefer the query form unless your client docs say otherwise.
-          </p>
-          <Card className="mt-3 border-[var(--line)] p-4 md:p-5">
-            <div className="text-[10px] font-medium uppercase tracking-wide text-foreground/45">
-              Recommended — <code className="text-foreground/65">?session=</code>
-            </div>
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start">
-              <div className="min-w-0 flex-1 rounded-md border border-[var(--line)] bg-[var(--panel-2)] px-2.5 py-2 font-mono text-[10px] leading-snug text-foreground/85 break-all">
-                {primaryUrl || "—"}
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                className="shrink-0 gap-1"
-                disabled={!primaryUrl}
-                onClick={() => primaryUrl && copy("primary", primaryUrl)}
-              >
-                {copiedField === "primary" ? (
-                  <Check className="h-3 w-3" aria-hidden />
-                ) : (
-                  <Copy className="h-3 w-3" aria-hidden />
-                )}
-                Copy
-              </Button>
-            </div>
-            {urls ? (
-              <div className="mt-5 border-t border-[var(--line)] pt-5">
-                <div className="text-[10px] font-medium uppercase tracking-wide text-foreground/45">
-                  Alternative — path session
-                </div>
-                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start">
-                  <div className="min-w-0 flex-1 rounded-md border border-[var(--line)] bg-[var(--panel-2)] px-2.5 py-2 font-mono text-[10px] leading-snug text-foreground/85 break-all">
-                    {urls.withPath}
+              {mintMessage ? (
+                <p className="rounded-xl border border-foreground/[0.06] bg-foreground/[0.03] px-4 py-3 text-[13px] leading-relaxed text-foreground/70">
+                  {mintMessage}
+                </p>
+              ) : null}
+              <div className="rounded-2xl border border-foreground/[0.06] bg-[var(--panel)]/60 px-4 py-4 sm:px-5">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-foreground/40">Active token</p>
+                <p className="mt-2 break-all font-mono text-[12px] leading-relaxed text-foreground/85">
+                  {sessionId}
+                </p>
+                {isMintedTradingToken && shareableInstallHref ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => void copy("install", shareableInstallHref)}
+                    >
+                      {copiedField === "install" ? (
+                        <Check className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                      ) : (
+                        <Copy className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                      )}
+                      Copy invite link
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" className="rounded-full" asChild>
+                      <Link href={`/mcp/install?token=${encodeURIComponent(sessionId)}`}>Minimal install page</Link>
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="shrink-0 gap-1"
-                    onClick={() => copy("path", urls.withPath)}
-                  >
-                    {copiedField === "path" ? (
-                      <Check className="h-3 w-3" aria-hidden />
-                    ) : (
-                      <Copy className="h-3 w-3" aria-hidden />
-                    )}
-                    Copy
-                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <Separator className="bg-foreground/[0.06]" />
+
+          <div className="flex gap-5">
+            <StepBadge n={2} />
+            <div className="min-w-0 flex-1 space-y-4">
+              <div>
+                <h2 className="text-[17px] font-semibold tracking-tight text-foreground">Copy the link for Claude</h2>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-foreground/55">
+                  Claude needs the full Streamable HTTP address — not only the domain.
+                </p>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[11px] font-medium text-foreground/40">Primary</p>
+                  <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+                    <div
+                      className={cn(
+                        "min-h-[3.25rem] flex-1 rounded-2xl border border-foreground/[0.08] bg-[var(--panel-2)] px-4 py-3 font-mono text-[12px] leading-snug text-foreground/80 break-all sm:py-3.5",
+                        !primaryUrl && "text-foreground/35",
+                      )}
+                    >
+                      {primaryUrl || "—"}
+                    </div>
+                    <Button
+                      type="button"
+                      size="lg"
+                      className="h-auto shrink-0 rounded-2xl px-6 sm:self-stretch"
+                      disabled={!primaryUrl}
+                      onClick={() => primaryUrl && copy("primary", primaryUrl)}
+                    >
+                      {copiedField === "primary" ? (
+                        <>
+                          <Check className="mr-2 h-4 w-4" aria-hidden />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="mr-2 h-4 w-4" aria-hidden />
+                          Copy
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium text-foreground/40">Alternative path style</p>
+                  <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+                    <div className="min-h-[3.25rem] flex-1 rounded-2xl border border-foreground/[0.06] bg-foreground/[0.02] px-4 py-3 font-mono text-[11px] leading-snug text-foreground/70 break-all sm:py-3.5">
+                      {urls.withPath}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="lg"
+                      className="h-auto shrink-0 rounded-2xl border border-foreground/10 bg-transparent px-6 sm:self-stretch"
+                      onClick={() => copy("path", urls.withPath)}
+                    >
+                      {copiedField === "path" ? "Copied" : "Copy"}
+                    </Button>
+                  </div>
                 </div>
               </div>
-            ) : null}
-          </Card>
-        </section>
-
-        <section className="mt-10">
-          <h2 className="text-[11px] font-medium uppercase tracking-wide text-foreground/45">
-            Step 3 — Add in Claude (fine integration)
-          </h2>
-          <Card className="mt-3 border-[var(--line)] overflow-hidden p-0">
-            <Tabs defaultValue="web" className="w-full">
-              <TabsList className="w-full justify-start rounded-none border-b border-[var(--line)] bg-[var(--panel)] px-2">
-                <TabsTrigger value="web">Claude (web)</TabsTrigger>
-                <TabsTrigger value="desktop">Desktop &amp; Cursor</TabsTrigger>
-              </TabsList>
-              <TabsContent value="web" className="m-0 p-4 md:p-5">
-                <ol className="list-decimal space-y-2.5 pl-5 text-[12px] leading-relaxed text-foreground/65">
-                  <li>Open Claude in the browser.</li>
-                  <li>Go to <strong className="text-foreground/80">Settings</strong> (profile menu).</li>
-                  <li>Open <strong className="text-foreground/80">Connectors</strong> (or Connectors &amp; skills).</li>
-                  <li>
-                    <strong className="text-foreground/80">Add custom connector</strong> → choose{" "}
-                    <strong className="text-foreground/80">Streamable HTTP</strong> / remote MCP.
-                  </li>
-                  <li>Paste the <strong className="text-foreground/80">connector URL</strong> from Step 2.</li>
-                  <li>Name it e.g. &quot;Lyra&quot;, save, then enable this connector for the chat where you want tools.</li>
-                </ol>
-              </TabsContent>
-              <TabsContent value="desktop" className="m-0 p-4 md:p-5">
-                <ol className="list-decimal space-y-2.5 pl-5 text-[12px] leading-relaxed text-foreground/65">
-                  <li>
-                    <strong className="text-foreground/80">Claude Desktop:</strong> Settings → Developer → Edit
-                    config is the classic path; many builds now use{" "}
-                    <strong className="text-foreground/80">Connectors</strong> like the web app — use the same
-                    Streamable HTTP URL from Step 2 when offered.
-                  </li>
-                  <li>
-                    <strong className="text-foreground/80">Cursor:</strong> Settings → MCP → add server URL
-                    (Streamable HTTP) with the same URL.
-                  </li>
-                  <li>Restart the app if the client does not pick up the new connector immediately.</li>
-                </ol>
-              </TabsContent>
-            </Tabs>
-            <div className="border-t border-[var(--line)] bg-[var(--panel-2)] px-4 py-3 md:px-5">
-              <a
-                href={ANTHROPIC_REMOTE_MCP_GUIDE}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-[11px] text-foreground/55 underline-offset-4 hover:text-foreground/85 hover:underline"
-              >
-                Anthropic — Get started with custom connectors (remote MCP)
-                <ExternalLink className="h-3 w-3 shrink-0 opacity-60" aria-hidden />
-              </a>
             </div>
-          </Card>
-        </section>
+          </div>
 
-        <section className="mt-10">
-          <h2 className="text-[11px] font-medium uppercase tracking-wide text-foreground/45">
-            Step 4 — Try in chat
-          </h2>
-          <Card className="mt-3 border-[var(--line)] bg-[var(--panel)] p-4 md:p-5">
-            <p className="text-[12px] leading-relaxed text-foreground/60">
-              After the connector is enabled for a conversation, ask Claude something like:
-            </p>
-            <ul className="mt-3 space-y-2 font-mono text-[11px] leading-relaxed text-foreground/75">
-              <li>&quot;Call get_trading_context and summarize my Lyra state.&quot;</li>
-              <li>&quot;What are my current trading rules in Lyra?&quot;</li>
-              <li>&quot;Record a small paper trade in Lyra: SOL → USDC for 0.01 SOL.&quot;</li>
-            </ul>
-          </Card>
+          <Separator className="bg-foreground/[0.06]" />
+
+          <div className="flex gap-5">
+            <StepBadge n={3} />
+            <div className="min-w-0 flex-1 space-y-4">
+              <h2 className="text-[17px] font-semibold tracking-tight text-foreground">Add it in Claude</h2>
+              <Card className="overflow-hidden rounded-2xl border-foreground/[0.08] shadow-sm">
+                <Tabs defaultValue="web" className="w-full">
+                  <TabsList className="h-auto w-full justify-start gap-0 rounded-none border-b border-foreground/[0.06] bg-foreground/[0.02] p-1.5">
+                    <TabsTrigger
+                      value="web"
+                      className="rounded-xl px-4 py-2.5 text-[13px] data-[state=active]:shadow-sm"
+                    >
+                      Claude in the browser
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="desktop"
+                      className="rounded-xl px-4 py-2.5 text-[13px] data-[state=active]:shadow-sm"
+                    >
+                      Desktop & Cursor
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="web" className="m-0 px-5 py-6 sm:px-6">
+                    <ol className="list-decimal space-y-3 pl-5 text-[14px] leading-relaxed text-foreground/65 marker:text-foreground/35">
+                      <li>Open Claude, then your profile → Settings.</li>
+                      <li>Open Connectors (wording may vary slightly).</li>
+                      <li>Add a custom connector and pick Streamable HTTP / remote MCP.</li>
+                      <li>Paste the URL from step 2 and name it &quot;Lyra&quot;.</li>
+                      <li>Enable Lyra for the chat where you want tools.</li>
+                    </ol>
+                  </TabsContent>
+                  <TabsContent value="desktop" className="m-0 px-5 py-6 sm:px-6">
+                    <ol className="list-decimal space-y-3 pl-5 text-[14px] leading-relaxed text-foreground/65 marker:text-foreground/35">
+                      <li>
+                        <span className="font-medium text-foreground/80">Claude Desktop:</span> use Connectors
+                        when available, or the documented MCP config path for your version — same Streamable URL
+                        as step 2.
+                      </li>
+                      <li>
+                        <span className="font-medium text-foreground/80">Cursor:</span> Settings → MCP → add the
+                        Streamable HTTP URL.
+                      </li>
+                      <li>Restart the client if the connector doesn’t show up immediately.</li>
+                    </ol>
+                  </TabsContent>
+                </Tabs>
+                <div className="border-t border-foreground/[0.06] bg-foreground/[0.02] px-5 py-4 sm:px-6">
+                  <a
+                    href={ANTHROPIC_REMOTE_MCP_GUIDE}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 text-[13px] font-medium text-foreground/55 transition hover:text-foreground"
+                  >
+                    Official Anthropic guide — remote MCP
+                    <ExternalLink className="h-3.5 w-3.5 opacity-60" aria-hidden />
+                  </a>
+                </div>
+              </Card>
+            </div>
+          </div>
+
+          <div className="flex gap-5">
+            <StepBadge n={4} />
+            <div className="min-w-0 flex-1 space-y-3">
+              <h2 className="text-[17px] font-semibold tracking-tight text-foreground">Try a first message</h2>
+              <div className="space-y-2 rounded-2xl border border-foreground/[0.06] bg-[var(--panel)]/50 px-5 py-4">
+                {[
+                  "Call get_trading_context and summarize my Lyra state.",
+                  "What are my trading rules in Lyra right now?",
+                  "Record a small paper trade in Lyra: SOL to USDC for 0.01 SOL.",
+                ].map((line) => (
+                  <p
+                    key={line}
+                    className="border-l-2 border-foreground/15 pl-3 font-mono text-[12px] leading-relaxed text-foreground/70"
+                  >
+                    “{line}”
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
         </section>
 
         {healthUrl ? (
-          <section className="mt-10">
-            <h2 className="text-[11px] font-medium uppercase tracking-wide text-foreground/45">
-              Verify MCP server
-            </h2>
-            <Card className="mt-3 flex flex-col gap-3 border-[var(--line)] bg-[var(--panel)] p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-2 text-[12px] text-foreground/60">
-                <Activity className="mt-0.5 h-4 w-4 shrink-0 text-foreground/45" aria-hidden />
-                <span>
-                  Open the health JSON in a new tab. You should see{" "}
-                  <code className="text-[10px] text-foreground/80">{`"ok": true`}</code>.
-                </span>
+          <div className="mt-14 flex flex-col items-stretch justify-between gap-4 rounded-2xl border border-foreground/[0.08] bg-[var(--panel)]/50 px-5 py-5 sm:flex-row sm:items-center sm:px-6">
+            <div className="flex items-start gap-3">
+              <Activity className="mt-0.5 h-5 w-5 shrink-0 text-foreground/40" aria-hidden />
+              <div>
+                <p className="text-[14px] font-medium text-foreground">Check that the MCP server is up</p>
+                <p className="mt-0.5 text-[13px] text-foreground/50">You should see a small JSON payload with ok: true.</p>
               </div>
-              <Button variant="secondary" size="sm" className="shrink-0 gap-1" asChild>
-                <a href={healthUrl} target="_blank" rel="noreferrer">
-                  Open /health
-                  <ExternalLink className="h-3 w-3" aria-hidden />
-                </a>
-              </Button>
-            </Card>
-          </section>
+            </div>
+            <Button variant="secondary" size="sm" className="shrink-0 rounded-full border border-foreground/10 bg-transparent" asChild>
+              <a href={healthUrl} target="_blank" rel="noreferrer">
+                Open health check
+                <ExternalLink className="ml-2 h-3.5 w-3.5" aria-hidden />
+              </a>
+            </Button>
+          </div>
         ) : null}
 
-        <section className="mt-10">
-          <h2 className="text-[11px] font-medium uppercase tracking-wide text-foreground/45">
-            Troubleshooting
-          </h2>
-          <Card className="mt-3 border-[var(--line)] bg-[var(--panel)] p-4 md:p-5">
-            <ul className="space-y-2.5 text-[12px] leading-relaxed text-foreground/60">
-              <li>
-                <strong className="text-foreground/75">403 / Host not allowed:</strong> add every public host
-                Claude hits (e.g. <code className="text-[10px]">mcp.lyrabuild.xyz</code> and your{" "}
-                <code className="text-[10px]">*.up.railway.app</code>) to{" "}
-                <code className="text-[10px]">MCP_ALLOWED_HOSTS</code> on Railway.
-              </li>
-              <li>
-                <strong className="text-foreground/75">Unknown token in Claude:</strong> mint again on this
-                page; old URLs stop working after revoke.
-              </li>
-              <li>
-                <strong className="text-foreground/75">Empty rules in tools:</strong> apply the Supabase
-                migration for <code className="text-[10px]">lyra_*</code> tables, then use{" "}
-                <code className="text-[10px]">set_rule</code> from Claude or wire the dashboard rules form
-                (spec §6 F4).
-              </li>
-            </ul>
-          </Card>
-        </section>
-
-        <p className="mt-12 text-center text-[10px] text-foreground/40">
-          Product spec: <code className="text-foreground/50">docs/lyra-technical-spec.md</code> (F2 dashboard,
-          F6 MCP install). Branded <code className="text-foreground/50">mcp.lyrabuild.xyz/install?token=</code> can
-          proxy to this hub or Railway — see <code className="text-foreground/50">lyra-mcp/README.md</code>.
-        </p>
+        <details className="group mt-12 rounded-2xl border border-foreground/[0.06] bg-foreground/[0.02] px-5 py-4 sm:px-6">
+          <summary className="cursor-pointer list-none text-[14px] font-medium text-foreground/60 outline-none [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex items-center gap-2">
+              Having trouble?
+              <ChevronRight className="h-4 w-4 shrink-0 transition group-open:rotate-90" aria-hidden />
+            </span>
+          </summary>
+          <ul className="mt-4 space-y-3 border-t border-foreground/[0.06] pt-4 text-[13px] leading-relaxed text-foreground/55">
+            <li>
+              <span className="font-medium text-foreground/75">403 from Claude:</span> the MCP host list on the
+              server must include every domain you paste (custom domain and Railway hostname).
+            </li>
+            <li>
+              <span className="font-medium text-foreground/75">“Unknown token”:</span> create a new token here;
+              revoking invalidates old links on purpose.
+            </li>
+            <li>
+              <span className="font-medium text-foreground/75">Empty data in tools:</span> database migrations
+              may still be pending, or you haven’t set rules yet — use set_rule from Claude or the dashboard when
+              it ships.
+            </li>
+          </ul>
+        </details>
       </div>
     </main>
   );
