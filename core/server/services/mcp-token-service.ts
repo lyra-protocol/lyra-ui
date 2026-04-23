@@ -56,3 +56,29 @@ export async function mintLyraMcpConnectorToken(privyUserId: string): Promise<{ 
 
   return { token };
 }
+
+export async function revokeLyraMcpConnectorTokens(privyUserId: string): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { data: user, error: userError } = await supabase
+    .from("workspace_users")
+    .select("id")
+    .eq("privy_user_id", privyUserId)
+    .maybeSingle<WorkspaceUserIdRow>();
+
+  if (userError) {
+    throw new Error(userError.message);
+  }
+  if (!user?.id) {
+    throw new Error("Workspace user not found.");
+  }
+
+  const { error: revokeError } = await supabase
+    .from("lyra_mcp_api_tokens")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("workspace_user_id", user.id)
+    .is("revoked_at", null);
+
+  if (revokeError) {
+    throw new Error(revokeError.message);
+  }
+}
