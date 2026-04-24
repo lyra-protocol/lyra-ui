@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/core/market/format";
 import { useBirdeyeRadar, type BirdeyeRadarMode, type BirdeyeRadarToken } from "@/hooks/use-birdeye-radar";
+import { Button } from "@/components/ui/button";
 
 function badgeTone(score: number) {
   if (score >= 80) return "bg-[var(--positive)]/15 text-[var(--positive)] border-[var(--positive)]/25";
@@ -28,6 +29,8 @@ function tokenKey(t: BirdeyeRadarToken) {
 export function BulkRadarPanel() {
   const [mode, setMode] = useState<BirdeyeRadarMode>("trending");
   const radar = useBirdeyeRadar({ mode, limit: 12 });
+  const [publishing, setPublishing] = useState(false);
+  const [publishMessage, setPublishMessage] = useState<string | null>(null);
 
   const rows = useMemo(() => radar.data?.tokens ?? [], [radar.data?.tokens]);
 
@@ -62,6 +65,48 @@ export function BulkRadarPanel() {
           ))}
         </div>
       </div>
+
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-2">
+        <p className="text-[10px] text-foreground/50">
+          Publish top picks into <span className="font-mono text-foreground/60">lyra_trading_signals</span> so Claude{" "}
+          <span className="font-medium text-foreground/65">get_alerts</span> becomes a real feed.
+        </p>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="rounded-full"
+          disabled={publishing || radar.isLoading}
+          onClick={async () => {
+            setPublishMessage(null);
+            setPublishing(true);
+            try {
+              const res = await fetch("/api/birdeye/signals", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mode, limit: 10 }),
+              });
+              const json = (await res.json()) as { ok?: boolean; inserted?: number; message?: string };
+              if (!res.ok || !json.ok) {
+                throw new Error(json.message ?? "Unable to publish signals.");
+              }
+              setPublishMessage(`Published ${json.inserted ?? 0} signal(s).`);
+            } catch (e) {
+              setPublishMessage(e instanceof Error ? e.message : "Publish failed.");
+            } finally {
+              setPublishing(false);
+            }
+          }}
+        >
+          {publishing ? "Publishing…" : "Publish signals"}
+        </Button>
+      </div>
+
+      {publishMessage ? (
+        <div className="border-b border-[var(--line)] px-3 py-2 text-[10px] text-foreground/55">
+          {publishMessage}
+        </div>
+      ) : null}
 
       {radar.isLoading ? (
         <div className="flex flex-1 items-center justify-center text-[11px] text-foreground/45">Loading radar…</div>
