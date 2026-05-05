@@ -7,6 +7,7 @@ import {
   useState,
   useCallback,
 } from "react";
+import { Markdown } from "./markdown";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,40 @@ type MemoryLesson = {
 
 type MarketTick = { symbol: string; mark: number; trend?: string };
 
+type NewsHeadline = {
+  source: string;
+  title: string;
+  url: string;
+  publishedAt: string;
+};
+
+type FundingTick = {
+  symbol: string;
+  rate: number;
+  annualizedPct: number;
+};
+
+type FearGreed = {
+  value: number;
+  classification: string;
+  delta: number | null;
+};
+
+type Survival = {
+  ageDays: number;
+  pnlToday: number;
+  dailyTarget: number;
+  computeCostDaily: number;
+  netToday: number;
+  hitTargetToday: boolean;
+  runwayDays: number | null;
+  tradesClosed: number;
+  wins: number;
+  losses: number;
+  winRate: number | null;
+  bornAt: string;
+};
+
 // ─── Design tokens ───────────────────────────────────────────────────────────
 
 const C = {
@@ -77,15 +112,17 @@ const C = {
 // the operator reads Lyra's prose, with tool calls as quiet inline annotations.
 
 type Cycle = {
-  id: string;          // cycle id (scan event id, or "boot")
+  id: string;
   number: number | null;
   ts: string;
-  markets?: string;    // "SOL $84.87 | BTC $80,919 | ETH $2,377"
-  thought: string;     // concatenated prose
+  startMs: number;
+  endMs?: number;
+  markets?: string;
+  thought: string;
   tools: { name: string; status: "running" | "ok" | "fail"; ts: string }[];
   decisions: { kind: "signal" | "decision" | "execution" | "confirmed" | "closed"; text: string; ts: string }[];
   errors: { text: string; ts: string }[];
-  ended: boolean;      // saw a sleep/scan-end event
+  ended: boolean;
 };
 
 function groupIntoCycles(feed: FeedEntry[]): Cycle[] {
@@ -98,6 +135,7 @@ function groupIntoCycles(feed: FeedEntry[]): Cycle[] {
         id: e.id,
         number: null,
         ts: e.ts,
+        startMs: e.tsMs,
         thought: "",
         tools: [],
         decisions: [],
@@ -106,6 +144,7 @@ function groupIntoCycles(feed: FeedEntry[]): Cycle[] {
       };
       cycles.push(cur);
     }
+    cur.endMs = e.tsMs;
     return cur;
   };
 
@@ -119,6 +158,7 @@ function groupIntoCycles(feed: FeedEntry[]): Cycle[] {
           id: e.id,
           number: Number(m[1]),
           ts: e.ts,
+          startMs: e.tsMs,
           thought: "",
           tools: [],
           decisions: [],
@@ -199,18 +239,29 @@ function modelLabel(m?: string): string {
 }
 
 function deriveMindState(feed: FeedEntry[]): {
-  state: "BOOTING" | "SCANNING" | "THINKING" | "ACTING" | "RESTING" | "FAULT";
+  state: "BOOTING" | "SCANNING" | "RESEARCHING" | "THINKING" | "ACTING" | "RESTING" | "FAULT";
   hue: string;
 } {
   if (feed.length === 0) return { state: "BOOTING", hue: C.inkSoft };
+
+  // Look at last few events, not just the most recent — research tools
+  // produce bursts of CALL/RECV that should distinct from market scans.
+  for (let i = feed.length - 1; i >= Math.max(0, feed.length - 6); i--) {
+    const e = feed[i];
+    if (e.type === "error") return { state: "FAULT", hue: C.rose };
+    if (e.type === "execution" || e.type === "confirmed" || e.type === "closed")
+      return { state: "ACTING", hue: C.amber };
+  }
+
   const last = feed[feed.length - 1];
-  if (last.type === "error") return { state: "FAULT", hue: C.rose };
-  if (last.type === "execution" || last.type === "confirmed" || last.type === "closed")
-    return { state: "ACTING", hue: C.amber };
-  if (last.type === "tool_call" || last.type === "tool_result")
-    return { state: "SCANNING", hue: C.teal };
   if (last.type === "thought" || last.type === "decision" || last.type === "signal")
     return { state: "THINKING", hue: C.amber };
+  if (last.type === "tool_call" || last.type === "tool_result") {
+    const c = last.content.toLowerCase();
+    if (c.includes("news") || c.includes("funding") || c.includes("fear") || c.includes("greed"))
+      return { state: "RESEARCHING", hue: C.violet };
+    return { state: "SCANNING", hue: C.teal };
+  }
   if (last.type === "sleep") return { state: "RESTING", hue: C.inkSoft };
   return { state: "SCANNING", hue: C.teal };
 }
@@ -222,6 +273,12 @@ export default function LyraWatchPage() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [memories, setMemories] = useState<MemoryLesson[]>([]);
   const [markets, setMarkets] = useState<MarketTick[]>([]);
+  const [news, setNews] = useState<NewsHeadline[]>([]);
+  const [funding, setFunding] = useState<FundingTick[]>([]);
+  const [fearGreed, setFearGreed] = useState<FearGreed | null>(null);
+  const [survival, setSurvival] = useState<Survival | null>(null);
+  // symbol → rolling array of marks (oldest → newest), used for sparklines.
+  const [trail, setTrail] = useState<Record<string, number[]>>({});
   const [agent, setAgent] = useState<AgentStatus | null>(null);
   const [connected, setConnected] = useState(false);
   const [scanCount, setScanCount] = useState(0);
@@ -286,6 +343,28 @@ export default function LyraWatchPage() {
           setMarkets(
             arr.map((m) => ({ symbol: m.symbol, mark: m.mark, trend: m["15m"]?.trend })),
           );
+          // Append marks to the rolling trail (cap at 64 ticks per symbol).
+          setTrail((prev) => {
+            const next = { ...prev };
+            for (const m of arr) {
+              const list = next[m.symbol] ? [...next[m.symbol]] : [];
+              list.push(m.mark);
+              next[m.symbol] = list.slice(-64);
+            }
+            return next;
+          });
+        }
+        if (msg.type === "tool_result" && Array.isArray(msg.data?.news)) {
+          setNews(msg.data.news as NewsHeadline[]);
+        }
+        if (msg.type === "tool_result" && Array.isArray(msg.data?.funding)) {
+          setFunding(msg.data.funding as FundingTick[]);
+        }
+        if (msg.type === "tool_result" && msg.data?.fearGreed) {
+          setFearGreed(msg.data.fearGreed as FearGreed);
+        }
+        if (msg.type === "scan" && msg.data?.survival) {
+          setSurvival(msg.data.survival as Survival);
         }
         if (msg.type === "memory" && msg.data?.lesson) {
           const l = msg.data.lesson as MemoryLesson;
@@ -384,10 +463,10 @@ export default function LyraWatchPage() {
           className="flex w-[244px] shrink-0 flex-col"
           style={{ borderRight: `1px solid ${C.hairline}` }}
         >
-          <Section label="MIND">
-            <div className="flex items-center gap-4 px-5 py-5">
+          <Section label="SURVIVAL">
+            <div className="flex items-center gap-4 px-5 py-4">
               <Pulse hue={mind.hue} state={mind.state} intervalMs={agent?.scanIntervalMs ?? 30_000} />
-              <div className="flex flex-col">
+              <div className="flex flex-1 flex-col">
                 <span
                   className="text-[10px] font-semibold tracking-[0.28em]"
                   style={{ color: mind.hue }}
@@ -399,15 +478,46 @@ export default function LyraWatchPage() {
                 </span>
               </div>
             </div>
+            {survival && <SurvivalPanel s={survival} />}
           </Section>
 
           <Section label="MARKETS" right={`${markets.length}`}>
-            <div className="space-y-1 px-5 py-3.5">
-              {(markets.length ? markets : [{ symbol: "SOL" }, { symbol: "BTC" }, { symbol: "ETH" }]).map((m) => (
-                <MarketRow key={m.symbol} symbol={m.symbol} mark={"mark" in m ? m.mark : undefined} trend={"trend" in m ? m.trend : undefined} />
+            <div className="space-y-2 px-5 py-3.5">
+              {(markets.length
+                ? markets
+                : [{ symbol: "SOL" }, { symbol: "BTC" }, { symbol: "ETH" }]
+              ).map((m) => (
+                <MarketRow
+                  key={m.symbol}
+                  symbol={m.symbol}
+                  mark={"mark" in m ? m.mark : undefined}
+                  trend={"trend" in m ? m.trend : undefined}
+                  trail={trail[m.symbol] ?? []}
+                />
               ))}
             </div>
           </Section>
+
+          {(fearGreed || funding.length > 0) && (
+            <Section label="SENTIMENT">
+              <div className="space-y-3 px-5 py-3.5">
+                {fearGreed && <FearGreedMeter fg={fearGreed} />}
+                {funding.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <div
+                      className="text-[8.5px] tracking-[0.22em]"
+                      style={{ color: C.inkFaint }}
+                    >
+                      FUNDING (8H)
+                    </div>
+                    {funding.map((f) => (
+                      <FundingRow key={f.symbol} f={f} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
 
           <Section label="DNA">
             <div className="space-y-2 px-5 py-3.5">
@@ -470,6 +580,16 @@ export default function LyraWatchPage() {
             </div>
           </Section>
 
+          {news.length > 0 && (
+            <Section label="HEADLINES" right={`${news.length}`}>
+              <div className="space-y-2.5 px-5 py-3.5">
+                {news.slice(0, 6).map((n, i) => (
+                  <NewsRow key={i} n={n} />
+                ))}
+              </div>
+            </Section>
+          )}
+
           <Section label="MEMORY" right={`${memories.length}`} grow>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3.5">
               {memories.length === 0 ? (
@@ -517,14 +637,11 @@ function CycleBlock({ cycle, isCurrent }: { cycle: Cycle; isCurrent: boolean }) 
         )}
       </div>
 
-      {/* Prose: Lyra's actual thinking */}
+      {/* Prose: Lyra's actual thinking, rendered as markdown */}
       {cycle.thought && (
-        <p
-          className={`whitespace-pre-wrap text-[14px] leading-[1.7] ${isCurrent ? "lyra-cursor" : ""}`}
-          style={{ color: C.ink, fontFamily: "Inter, system-ui, sans-serif" }}
-        >
-          {cycle.thought}
-        </p>
+        <div className={isCurrent ? "lyra-cursor" : ""}>
+          <Markdown text={cycle.thought} color={C.ink} />
+        </div>
       )}
 
       {/* Decisions/executions stand out */}
@@ -768,31 +885,285 @@ function Pulse({
   );
 }
 
+function SurvivalPanel({ s }: { s: Survival }) {
+  const pnlColor = s.pnlToday >= 0 ? C.emerald : C.rose;
+  const targetPct = Math.max(0, Math.min(100, (s.pnlToday / s.dailyTarget) * 100));
+  const targetColor = s.hitTargetToday ? C.emerald : s.pnlToday > 0 ? C.amber : C.rose;
+  const runwayColor =
+    s.runwayDays === null ? C.inkDim :
+    s.runwayDays < 7  ? C.rose :
+    s.runwayDays < 30 ? C.amber :
+                        C.emerald;
+
+  return (
+    <div
+      className="space-y-3 px-5 py-4"
+      style={{ borderTop: `1px solid ${C.hairline}` }}
+    >
+      {/* Today's PnL vs quota */}
+      <div>
+        <div className="flex items-baseline justify-between">
+          <span
+            className="text-[8.5px] tracking-[0.22em]"
+            style={{ color: C.inkFaint }}
+          >
+            TODAY · QUOTA
+          </span>
+          <span
+            className="text-[10px] font-semibold tabular-nums"
+            style={{ color: pnlColor }}
+          >
+            {s.pnlToday >= 0 ? "+" : ""}${s.pnlToday.toFixed(2)}
+            <span className="ml-1.5 text-[9px]" style={{ color: C.inkDim }}>
+              / ${s.dailyTarget}
+            </span>
+          </span>
+        </div>
+        <div
+          className="mt-1.5 h-[3px] w-full overflow-hidden rounded-full"
+          style={{ background: C.hairline }}
+        >
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${targetPct}%`,
+              background: targetColor,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Runway */}
+      <div className="flex items-baseline justify-between">
+        <span className="text-[8.5px] tracking-[0.22em]" style={{ color: C.inkFaint }}>
+          RUNWAY
+        </span>
+        <span
+          className="text-[10px] font-semibold tabular-nums"
+          style={{ color: runwayColor }}
+        >
+          {s.runwayDays === null
+            ? "—"
+            : s.runwayDays > 365
+            ? "365+ d"
+            : `${s.runwayDays.toFixed(1)} d`}
+          <span className="ml-1.5 text-[9px]" style={{ color: C.inkDim }}>
+            @ ${s.computeCostDaily.toFixed(0)}/d burn
+          </span>
+        </span>
+      </div>
+
+      {/* Trade record */}
+      <div className="flex items-baseline justify-between">
+        <span className="text-[8.5px] tracking-[0.22em]" style={{ color: C.inkFaint }}>
+          RECORD
+        </span>
+        <span
+          className="text-[10px] tabular-nums"
+          style={{ color: C.ink }}
+        >
+          {s.wins}W / {s.losses}L
+          {s.winRate !== null && (
+            <span className="ml-1.5 text-[9px]" style={{ color: C.inkDim }}>
+              {(s.winRate * 100).toFixed(0)}% wr
+            </span>
+          )}
+        </span>
+      </div>
+
+      {/* Age */}
+      <div className="flex items-baseline justify-between">
+        <span className="text-[8.5px] tracking-[0.22em]" style={{ color: C.inkFaint }}>
+          AGE
+        </span>
+        <span className="text-[10px] tabular-nums" style={{ color: C.inkSoft }}>
+          {s.ageDays.toFixed(1)} days
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function MarketRow({
   symbol,
   mark,
   trend,
+  trail,
 }: {
   symbol: string;
   mark?: number;
   trend?: string;
+  trail: number[];
 }) {
   const trendColor = trend === "up" ? C.emerald : trend === "down" ? C.rose : C.inkDim;
+  const sparkColor =
+    trail.length > 1 && trail[trail.length - 1] >= trail[0] ? C.emerald : C.rose;
   return (
-    <div className="flex items-baseline justify-between text-[10.5px] tabular-nums">
-      <span style={{ color: C.inkSoft }}>{symbol}</span>
-      <span className="flex items-baseline gap-2">
+    <div className="flex items-center gap-2">
+      <span className="w-7 text-[10.5px]" style={{ color: C.inkSoft }}>
+        {symbol}
+      </span>
+      <Sparkline values={trail} color={trail.length < 2 ? C.inkFaint : sparkColor} />
+      <span
+        className="ml-auto flex items-baseline gap-1.5 text-[10.5px] tabular-nums"
+        style={{ color: mark ? C.ink : C.inkFaint }}
+      >
         <span style={{ color: trendColor, fontSize: 7 }}>
-          {trend === "up" ? "▲" : trend === "down" ? "▼" : "•"}
+          {trend === "up" ? "▲" : trend === "down" ? "▼" : "·"}
         </span>
-        <span style={{ color: mark ? C.ink : C.inkFaint }}>
-          {mark
-            ? mark.toLocaleString("en-US", { maximumFractionDigits: mark < 10 ? 4 : 2 })
-            : "—"}
+        {mark
+          ? mark.toLocaleString("en-US", { maximumFractionDigits: mark < 10 ? 4 : 2 })
+          : "—"}
+      </span>
+    </div>
+  );
+}
+
+function Sparkline({ values, color }: { values: number[]; color: string }) {
+  const width = 56;
+  const height = 16;
+  if (values.length < 2) {
+    return (
+      <svg width={width} height={height} aria-hidden>
+        <line
+          x1={0}
+          y1={height / 2}
+          x2={width}
+          y2={height / 2}
+          stroke={C.inkFaint}
+          strokeWidth={1}
+          strokeDasharray="2 2"
+        />
+      </svg>
+    );
+  }
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const step = width / (values.length - 1);
+  const points = values
+    .map((v, i) => `${(i * step).toFixed(2)},${(height - ((v - min) / range) * height).toFixed(2)}`)
+    .join(" ");
+  return (
+    <svg width={width} height={height} aria-hidden>
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth={1}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function FearGreedMeter({ fg }: { fg: FearGreed }) {
+  const v = Math.max(0, Math.min(100, fg.value));
+  const hue =
+    v <= 24 ? C.rose :
+    v <= 44 ? C.amber :
+    v <= 55 ? C.inkSoft :
+    v <= 74 ? C.gold :
+              C.emerald;
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[8.5px] tracking-[0.22em]" style={{ color: C.inkFaint }}>
+          FEAR · GREED
+        </span>
+        <span
+          className="text-[10px] font-semibold tabular-nums tracking-wide"
+          style={{ color: hue }}
+        >
+          {v}
+          {fg.delta !== null && fg.delta !== undefined && (
+            <span className="ml-1.5 text-[9px]" style={{ color: C.inkDim }}>
+              {fg.delta >= 0 ? "+" : ""}
+              {fg.delta}
+            </span>
+          )}
+        </span>
+      </div>
+      <div
+        className="relative h-[3px] w-full overflow-hidden rounded-full"
+        style={{ background: C.hairline }}
+      >
+        <div
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{
+            width: `${v}%`,
+            background: `linear-gradient(90deg, ${C.rose}, ${C.amber}, ${C.gold}, ${C.emerald})`,
+            transition: "width 0.6s ease-out",
+          }}
+        />
+        <div
+          className="absolute inset-y-[-2px]"
+          style={{
+            left: `calc(${v}% - 1px)`,
+            width: 2,
+            background: hue,
+            boxShadow: `0 0 4px ${hue}`,
+          }}
+        />
+      </div>
+      <div className="text-[10px]" style={{ color: C.inkDim }}>
+        {fg.classification}
+      </div>
+    </div>
+  );
+}
+
+function FundingRow({ f }: { f: FundingTick }) {
+  const positive = f.rate >= 0;
+  const color = Math.abs(f.annualizedPct) > 50 ? C.amber : positive ? C.inkSoft : C.teal;
+  return (
+    <div className="flex items-baseline justify-between text-[10px] tabular-nums">
+      <span style={{ color: C.inkSoft }}>{f.symbol}</span>
+      <span style={{ color }}>
+        {(f.rate * 100).toFixed(4)}%
+        <span className="ml-1.5 text-[9px]" style={{ color: C.inkDim }}>
+          {f.annualizedPct >= 0 ? "+" : ""}
+          {f.annualizedPct.toFixed(0)}% APR
         </span>
       </span>
     </div>
   );
+}
+
+function NewsRow({ n }: { n: NewsHeadline }) {
+  const age = newsAge(n.publishedAt);
+  return (
+    <a
+      href={n.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block transition-opacity hover:opacity-80"
+    >
+      <div className="flex items-baseline gap-2 text-[8.5px] tracking-[0.18em]">
+        <span style={{ color: C.teal }}>{n.source.toUpperCase()}</span>
+        <span className="ml-auto tabular-nums" style={{ color: C.inkFaint }}>
+          {age}
+        </span>
+      </div>
+      <p
+        className="mt-1 text-[11px] leading-[1.4]"
+        style={{ color: C.inkSoft }}
+      >
+        {n.title}
+      </p>
+    </a>
+  );
+}
+
+function newsAge(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(ms / 60_000);
+  if (m < 1) return "now";
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
 }
 
 function PositionCard({ p }: { p: Position }) {

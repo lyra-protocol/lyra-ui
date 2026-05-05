@@ -5,12 +5,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/",
-        destination: "/a/lyra",
+        destination: "/lyra",
         permanent: false,
       },
       {
         source: "/workspace",
-        destination: "/a/lyra",
+        destination: "/lyra",
         permanent: false,
       },
     ];
