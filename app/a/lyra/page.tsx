@@ -338,8 +338,23 @@ export default function LyraWatchPage() {
 
         setConnected(true);
 
-        if (msg.type === "tool_result" && Array.isArray(msg.data?.positions)) {
+        // Positions — broadcast both at cycle start (scan) and when tool called
+        if (
+          (msg.type === "tool_result" || msg.type === "scan") &&
+          Array.isArray(msg.data?.positions)
+        ) {
           setPositions(msg.data.positions as Position[]);
+        }
+        // Memories — populated at cycle start (scan) and on write_memory
+        if (msg.type === "scan" && Array.isArray(msg.data?.memories)) {
+          const mems = (msg.data.memories as Array<{ type: string; content: string; confidence: number; symbol?: string; createdAt?: string }>)
+            .map((m) => ({ type: m.type, content: m.content, confidence: m.confidence, symbol: m.symbol, ts: m.createdAt ?? "" }));
+          setMemories(mems.slice(0, 14));
+        }
+        if (msg.type === "tool_result" && Array.isArray(msg.data?.memories)) {
+          const mems = (msg.data.memories as Array<{ type: string; content: string; confidence: number; symbol?: string; createdAt?: string }>)
+            .map((m) => ({ type: m.type, content: m.content, confidence: m.confidence, symbol: m.symbol, ts: m.createdAt ?? "" }));
+          setMemories(mems.slice(0, 14));
         }
         if (msg.type === "tool_result" && Array.isArray(msg.data?.markets)) {
           const arr = msg.data.markets as Array<{ symbol: string; mark: number; "15m"?: { trend?: string } }>;
