@@ -189,9 +189,12 @@ function groupIntoCycles(feed: FeedEntry[]): Cycle[] {
 
     if (e.type === "tool_result") {
       const c = ensure(e);
-      const name = e.content.replace(/^←\s*/, "").replace(/\s+done$/, "");
+      const m = e.content.match(/^←\s*(\S+)(?:\s+(done|failed))?$/);
+      const name = m ? m[1] : e.content.replace(/^←\s*/, "").trim();
+      const status = m && m[2] === "failed" ? "fail" : "ok";
+      const errored = Boolean(e.data && (e.data as { error?: unknown }).error);
       const last = [...c.tools].reverse().find((t) => t.name === name && t.status === "running");
-      if (last) last.status = "ok";
+      if (last) last.status = errored ? "fail" : status;
       continue;
     }
 
