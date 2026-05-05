@@ -280,6 +280,8 @@ export default function LyraWatchPage() {
   const [funding, setFunding] = useState<FundingTick[]>([]);
   const [fearGreed, setFearGreed] = useState<FearGreed | null>(null);
   const [survival, setSurvival] = useState<Survival | null>(null);
+  const [accountValue, setAccountValue] = useState<number | null>(null);
+  const [availableMargin, setAvailableMargin] = useState<number | null>(null);
   // symbol → rolling array of marks (oldest → newest), used for sparklines.
   const [trail, setTrail] = useState<Record<string, number[]>>({});
   const [agent, setAgent] = useState<AgentStatus | null>(null);
@@ -338,12 +340,20 @@ export default function LyraWatchPage() {
 
         setConnected(true);
 
-        // Positions — broadcast both at cycle start (scan) and when tool called
+        // Positions + balance — broadcast at cycle start and after fills
         if (
           (msg.type === "tool_result" || msg.type === "scan") &&
           Array.isArray(msg.data?.positions)
         ) {
           setPositions(msg.data.positions as Position[]);
+        }
+        if (
+          (msg.type === "tool_result" || msg.type === "scan") &&
+          typeof msg.data?.accountValue === "number"
+        ) {
+          setAccountValue(msg.data.accountValue as number);
+          if (typeof msg.data?.availableMargin === "number") setAvailableMargin(msg.data.availableMargin as number);
+          else if (typeof msg.data?.withdrawable === "number") setAvailableMargin(msg.data.withdrawable as number);
         }
         // Memories — populated at cycle start (scan) and on write_memory
         if (msg.type === "scan" && Array.isArray(msg.data?.memories)) {
@@ -539,6 +549,16 @@ export default function LyraWatchPage() {
 
           <Section label="DNA">
             <div className="space-y-2 px-5 py-3.5">
+              <Row
+                k="balance"
+                v={accountValue !== null ? fmtUsd(accountValue) : "—"}
+                color={accountValue !== null && accountValue < 50 ? C.rose : undefined}
+              />
+              <Row
+                k="available"
+                v={availableMargin !== null ? fmtUsd(availableMargin) : "—"}
+                color={availableMargin !== null && availableMargin < 20 ? C.rose : availableMargin !== null && availableMargin < 100 ? C.amber : undefined}
+              />
               <Row k="max position"   v={agent ? fmtUsd(agent.constraints.maxPositionUsd) : "—"} />
               <Row k="max leverage"   v={agent ? `${agent.constraints.maxLeverage}×` : "—"} />
               <Row k="max concurrent" v={agent ? String(agent.constraints.maxPositions) : "—"} />
@@ -832,11 +852,11 @@ function Stat({ k, v }: { k: string; v: string }) {
   );
 }
 
-function Row({ k, v, dim }: { k: string; v: string; dim?: boolean }) {
+function Row({ k, v, dim, color }: { k: string; v: string; dim?: boolean; color?: string }) {
   return (
     <div className="flex items-baseline justify-between text-[10.5px]">
       <span style={{ color: C.inkDim }}>{k}</span>
-      <span className="tabular-nums" style={{ color: dim ? C.inkSoft : C.ink }}>{v}</span>
+      <span className="tabular-nums" style={{ color: color ?? (dim ? C.inkSoft : C.ink) }}>{v}</span>
     </div>
   );
 }
