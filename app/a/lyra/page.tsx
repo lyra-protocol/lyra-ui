@@ -318,6 +318,26 @@ export default function LyraWatchPage() {
     return () => clearInterval(t);
   }, []);
 
+  // Memory bootstrap — load persisted memories on mount so panel is never empty
+  useEffect(() => {
+    fetch("/api/lyra/memory")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { memories?: Array<{ type: string; content: string; confidence: number; symbol?: string; createdAt?: string }> } | null) => {
+        if (data?.memories?.length) {
+          setMemories(
+            data.memories.slice(0, 14).map((m) => ({
+              type: m.type,
+              content: m.content,
+              confidence: m.confidence,
+              symbol: m.symbol,
+              ts: m.createdAt ?? "",
+            })),
+          );
+        }
+      })
+      .catch(() => { /* agent offline at load time — SSE will fill in later */ });
+  }, []);
+
   // SSE
   useEffect(() => {
     const es = new EventSource("/api/lyra/stream");
