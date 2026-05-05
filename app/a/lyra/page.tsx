@@ -56,37 +56,129 @@ type MarketTick = { symbol: string; mark: number; trend?: string };
 
 const C = {
   bg:        "#050505",
+  panel:     "#0A0A09",
   ink:       "#ECECE6",
   inkSoft:   "#A8A69E",
   inkDim:    "#5A5852",
   inkFaint:  "#2D2C28",
   hairline:  "#1A1A18",
   hairBold:  "#2A2926",
-  amber:     "#F4A340",   // active / thinking
-  emerald:   "#5BC892",   // confirmed / long
-  rose:      "#E07570",   // error / short
-  teal:      "#7AC9C0",   // tool / data
-  violet:    "#B59AE8",   // memory
-  gold:      "#E5C07B",   // decision / signal
+  amber:     "#F4A340",
+  emerald:   "#5BC892",
+  rose:      "#E07570",
+  teal:      "#7AC9C0",
+  violet:    "#B59AE8",
+  gold:      "#E5C07B",
 };
 
-// One row of meta per event type. Single-source-of-truth for color + label.
-const TYPE_META: Record<EventType, { color: string; label: string; weight: "loud" | "soft" | "ghost" }> = {
-  wake:        { color: C.inkDim,  label: "WAKE",   weight: "ghost" },
-  scan:        { color: C.inkSoft, label: "SCAN",   weight: "soft"  },
-  thought:     { color: C.ink,     label: "·",      weight: "loud"  },
-  tool_call:   { color: C.teal,    label: "CALL",   weight: "loud"  },
-  tool_result: { color: C.teal,    label: "RECV",   weight: "soft"  },
-  signal:      { color: C.gold,    label: "SIGNAL", weight: "loud"  },
-  decision:    { color: C.amber,   label: "DECIDE", weight: "loud"  },
-  execution:   { color: C.amber,   label: "EXEC",   weight: "loud"  },
-  confirmed:   { color: C.emerald, label: "FILL",   weight: "loud"  },
-  monitoring:  { color: C.inkDim,  label: "MON",    weight: "ghost" },
-  closed:      { color: C.rose,    label: "CLOSE",  weight: "loud"  },
-  memory:      { color: C.violet,  label: "MEM",    weight: "soft"  },
-  sleep:       { color: C.inkDim,  label: "SLEEP",  weight: "ghost" },
-  error:       { color: C.rose,    label: "ERR",    weight: "loud"  },
+// ─── Cycle model ─────────────────────────────────────────────────────────────
+//
+// A cycle is one wake/scan/think/sleep loop. We render one block per cycle so
+// the operator reads Lyra's prose, with tool calls as quiet inline annotations.
+
+type Cycle = {
+  id: string;          // cycle id (scan event id, or "boot")
+  number: number | null;
+  ts: string;
+  markets?: string;    // "SOL $84.87 | BTC $80,919 | ETH $2,377"
+  thought: string;     // concatenated prose
+  tools: { name: string; status: "running" | "ok" | "fail"; ts: string }[];
+  decisions: { kind: "signal" | "decision" | "execution" | "confirmed" | "closed"; text: string; ts: string }[];
+  errors: { text: string; ts: string }[];
+  ended: boolean;      // saw a sleep/scan-end event
 };
+
+function groupIntoCycles(feed: FeedEntry[]): Cycle[] {
+  const cycles: Cycle[] = [];
+  let cur: Cycle | null = null;
+
+  const ensure = (e: FeedEntry): Cycle => {
+    if (!cur) {
+      cur = {
+        id: e.id,
+        number: null,
+        ts: e.ts,
+        thought: "",
+        tools: [],
+        decisions: [],
+        errors: [],
+        ended: false,
+      };
+      cycles.push(cur);
+    }
+    return cur;
+  };
+
+  for (const e of feed) {
+    if (e.type === "scan") {
+      // First "Scan #N — collecting market data..." starts a new cycle.
+      // Second "Markets loaded: ..." is metadata for the current cycle.
+      const m = e.content.match(/Scan #(\d+)/);
+      if (m) {
+        cur = {
+          id: e.id,
+          number: Number(m[1]),
+          ts: e.ts,
+          thought: "",
+          tools: [],
+          decisions: [],
+          errors: [],
+          ended: false,
+        };
+        cycles.push(cur);
+        continue;
+      }
+      const ml = e.content.match(/Markets loaded: (.+)$/);
+      if (ml) {
+        ensure(e).markets = ml[1];
+        continue;
+      }
+      continue;
+    }
+
+    if (e.type === "thought") {
+      ensure(e).thought += e.content;
+      continue;
+    }
+
+    if (e.type === "tool_call") {
+      const name = e.content.replace(/^→\s*/, "").replace(/\(.*\)$/, "");
+      ensure(e).tools.push({ name, status: "running", ts: e.ts });
+      continue;
+    }
+
+    if (e.type === "tool_result") {
+      const c = ensure(e);
+      const name = e.content.replace(/^←\s*/, "").replace(/\s+done$/, "");
+      const last = [...c.tools].reverse().find((t) => t.name === name && t.status === "running");
+      if (last) last.status = "ok";
+      continue;
+    }
+
+    if (
+      e.type === "signal" ||
+      e.type === "decision" ||
+      e.type === "execution" ||
+      e.type === "confirmed" ||
+      e.type === "closed"
+    ) {
+      ensure(e).decisions.push({ kind: e.type, text: e.content, ts: e.ts });
+      continue;
+    }
+
+    if (e.type === "error") {
+      ensure(e).errors.push({ text: e.content, ts: e.ts });
+      continue;
+    }
+
+    if (e.type === "sleep" || e.type === "monitoring") {
+      if (cur) cur.ended = true;
+      continue;
+    }
+  }
+
+  return cycles;
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -106,7 +198,6 @@ function modelLabel(m?: string): string {
   return m.split("-").slice(0, 2).join("-");
 }
 
-// Derive Lyra's instantaneous mind state from the most recent few events.
 function deriveMindState(feed: FeedEntry[]): {
   state: "BOOTING" | "SCANNING" | "THINKING" | "ACTING" | "RESTING" | "FAULT";
   hue: string;
@@ -139,33 +230,20 @@ export default function LyraWatchPage() {
 
   const feedRef = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
-  const esRef = useRef<EventSource | null>(null);
 
-  // ── Tick (drives uptime, breathing, etc.)
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // ── Append helper — coalesces consecutive thought tokens
   const push = useCallback((entry: Omit<FeedEntry, "id" | "ts" | "tsMs">) => {
-    setFeed((prev) => {
-      if (
-        entry.type === "thought" &&
-        prev.length > 0 &&
-        prev[prev.length - 1].type === "thought"
-      ) {
-        const last = prev[prev.length - 1];
-        return [...prev.slice(0, -1), { ...last, content: last.content + entry.content }];
-      }
-      return [
-        ...prev.slice(-400),
-        { ...entry, id: nextId(), ts: tsNow(), tsMs: Date.now() },
-      ];
-    });
+    setFeed((prev) => [
+      ...prev.slice(-600),
+      { ...entry, id: nextId(), ts: tsNow(), tsMs: Date.now() },
+    ]);
   }, []);
 
-  // ── Status poll
+  // Status poll
   useEffect(() => {
     const poll = async () => {
       try {
@@ -178,10 +256,9 @@ export default function LyraWatchPage() {
     return () => clearInterval(t);
   }, []);
 
-  // ── SSE
+  // SSE
   useEffect(() => {
     const es = new EventSource("/api/lyra/stream");
-    esRef.current = es;
 
     es.onopen  = () => setConnected(true);
     es.onerror = () => setConnected(false);
@@ -214,7 +291,9 @@ export default function LyraWatchPage() {
           const l = msg.data.lesson as MemoryLesson;
           setMemories((prev) => [l, ...prev].slice(0, 14));
         }
-        if (msg.type === "scan") setScanCount((n) => n + 1);
+        if (msg.type === "scan" && msg.content?.includes("Scan #")) {
+          setScanCount((n) => n + 1);
+        }
 
         push({ type: msg.type, content: msg.content ?? "", data: msg.data });
       } catch { /* noop */ }
@@ -223,11 +302,10 @@ export default function LyraWatchPage() {
     return () => es.close();
   }, [push]);
 
-  // ── Auto-scroll feed unless user scrolled up
   const onFeedScroll = () => {
     if (!feedRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = feedRef.current;
-    atBottomRef.current = scrollHeight - scrollTop - clientHeight < 40;
+    atBottomRef.current = scrollHeight - scrollTop - clientHeight < 60;
   };
   useEffect(() => {
     if (atBottomRef.current && feedRef.current) {
@@ -235,6 +313,7 @@ export default function LyraWatchPage() {
     }
   }, [feed]);
 
+  const cycles = useMemo(() => groupIntoCycles(feed), [feed]);
   const mind = useMemo(() => deriveMindState(feed), [feed]);
   const uptime = useMemo(() => formatUptime(now - bootedAt), [now, bootedAt]);
 
@@ -252,16 +331,13 @@ export default function LyraWatchPage() {
       <Aurora hue={mind.hue} />
       <Keyframes />
 
-      {/* ── Top bar ─────────────────────────────────────────────────── */}
+      {/* ── Top bar ────────────────────────────────────────────── */}
       <header
         className="relative z-10 flex h-12 shrink-0 items-center justify-between px-6"
         style={{ borderBottom: `1px solid ${C.hairline}` }}
       >
         <div className="flex items-center gap-6">
-          <span
-            className="text-[13px] font-semibold tracking-[0.32em]"
-            style={{ color: C.ink }}
-          >
+          <span className="text-[13px] font-semibold tracking-[0.32em]" style={{ color: C.ink }}>
             LYRA
           </span>
           <span
@@ -300,15 +376,14 @@ export default function LyraWatchPage() {
         </div>
       </header>
 
-      {/* ── Body ───────────────────────────────────────────────────── */}
+      {/* ── Body ───────────────────────────────────────────────── */}
       <div className="relative z-10 flex min-h-0 flex-1">
 
-        {/* ── Left rail ─────────────────────────────────────────── */}
+        {/* ── Left rail ─────────────────────────────────────── */}
         <aside
           className="flex w-[244px] shrink-0 flex-col"
           style={{ borderRight: `1px solid ${C.hairline}` }}
         >
-          {/* Mind */}
           <Section label="MIND">
             <div className="flex items-center gap-4 px-5 py-5">
               <Pulse hue={mind.hue} state={mind.state} intervalMs={agent?.scanIntervalMs ?? 30_000} />
@@ -326,7 +401,6 @@ export default function LyraWatchPage() {
             </div>
           </Section>
 
-          {/* Markets ticker */}
           <Section label="MARKETS" right={`${markets.length}`}>
             <div className="space-y-1 px-5 py-3.5">
               {(markets.length ? markets : [{ symbol: "SOL" }, { symbol: "BTC" }, { symbol: "ETH" }]).map((m) => (
@@ -335,37 +409,39 @@ export default function LyraWatchPage() {
             </div>
           </Section>
 
-          {/* DNA */}
           <Section label="DNA">
             <div className="space-y-2 px-5 py-3.5">
-              <Row k="max position"  v={agent ? fmtUsd(agent.constraints.maxPositionUsd) : "—"} />
-              <Row k="max leverage"  v={agent ? `${agent.constraints.maxLeverage}×` : "—"} />
+              <Row k="max position"   v={agent ? fmtUsd(agent.constraints.maxPositionUsd) : "—"} />
+              <Row k="max leverage"   v={agent ? `${agent.constraints.maxLeverage}×` : "—"} />
               <Row k="max concurrent" v={agent ? String(agent.constraints.maxPositions) : "—"} />
-              <Row k="wallet"        v={shortAddress(agent?.hlAddress ?? null)} dim />
+              <Row k="wallet"         v={shortAddress(agent?.hlAddress ?? null)} dim />
             </div>
           </Section>
 
           <div className="flex-1" />
         </aside>
 
-        {/* ── Center: thought stream ───────────────────────────── */}
+        {/* ── Center: cycle stream ────────────────────────── */}
         <main className="flex min-h-0 flex-1 flex-col">
-          <Section label="THOUGHT STREAM" right={`${feed.length} events`}>
+          <Section
+            label="CONSCIOUSNESS"
+            right={cycles.length === 0 ? undefined : `${cycles.length} cycles`}
+          >
             <div
               ref={feedRef}
               onScroll={onFeedScroll}
-              className="min-h-0 flex-1 overflow-y-auto px-8 py-5"
+              className="min-h-0 flex-1 overflow-y-auto"
               style={{ scrollbarWidth: "thin" }}
             >
-              {feed.length === 0 ? (
+              {cycles.length === 0 ? (
                 <EmptyMind />
               ) : (
-                <div className="flex flex-col gap-[3px]">
-                  {feed.map((e, i) => (
-                    <FeedRow
-                      key={e.id}
-                      entry={e}
-                      isLast={i === feed.length - 1}
+                <div className="mx-auto max-w-[760px] px-10 py-8">
+                  {cycles.map((c, i) => (
+                    <CycleBlock
+                      key={c.id}
+                      cycle={c}
+                      isCurrent={i === cycles.length - 1}
                     />
                   ))}
                 </div>
@@ -374,7 +450,7 @@ export default function LyraWatchPage() {
           </Section>
         </main>
 
-        {/* ── Right rail ──────────────────────────────────────── */}
+        {/* ── Right rail ──────────────────────────────────── */}
         <aside
           className="flex w-[300px] shrink-0 flex-col"
           style={{ borderLeft: `1px solid ${C.hairline}` }}
@@ -411,7 +487,166 @@ export default function LyraWatchPage() {
   );
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// ─── Cycle block ─────────────────────────────────────────────────────────────
+
+function CycleBlock({ cycle, isCurrent }: { cycle: Cycle; isCurrent: boolean }) {
+  const opacity = isCurrent ? 1 : 0.55;
+  return (
+    <article
+      className="relative mb-12 last:mb-4"
+      style={{ opacity, transition: "opacity 0.6s ease-out" }}
+    >
+      {/* Cycle header */}
+      <div className="mb-4 flex items-baseline gap-3">
+        <span
+          className="text-[10px] font-semibold tabular-nums tracking-[0.28em]"
+          style={{ color: C.inkDim }}
+        >
+          {cycle.number !== null ? `CYCLE ${String(cycle.number).padStart(3, "0")}` : "BOOT"}
+        </span>
+        <span className="text-[10px] tabular-nums" style={{ color: C.inkFaint }}>
+          {cycle.ts}
+        </span>
+        {cycle.markets && (
+          <span
+            className="ml-auto truncate text-[10px] tabular-nums"
+            style={{ color: C.inkDim, fontFamily: 'ui-monospace, "SF Mono", monospace' }}
+          >
+            {cycle.markets}
+          </span>
+        )}
+      </div>
+
+      {/* Prose: Lyra's actual thinking */}
+      {cycle.thought && (
+        <p
+          className={`whitespace-pre-wrap text-[14px] leading-[1.7] ${isCurrent ? "lyra-cursor" : ""}`}
+          style={{ color: C.ink, fontFamily: "Inter, system-ui, sans-serif" }}
+        >
+          {cycle.thought}
+        </p>
+      )}
+
+      {/* Decisions/executions stand out */}
+      {cycle.decisions.length > 0 && (
+        <div className="mt-4 space-y-1.5">
+          {cycle.decisions.map((d, i) => (
+            <div
+              key={i}
+              className="flex items-baseline gap-3 rounded-sm px-3 py-2"
+              style={{
+                background:
+                  d.kind === "confirmed"
+                    ? "rgba(91,200,146,0.06)"
+                    : d.kind === "closed"
+                    ? "rgba(224,117,112,0.06)"
+                    : "rgba(244,163,64,0.06)",
+                border: `1px solid ${
+                  d.kind === "confirmed"
+                    ? "rgba(91,200,146,0.25)"
+                    : d.kind === "closed"
+                    ? "rgba(224,117,112,0.25)"
+                    : "rgba(244,163,64,0.25)"
+                }`,
+              }}
+            >
+              <span
+                className="text-[9px] font-semibold tracking-[0.22em]"
+                style={{
+                  color:
+                    d.kind === "confirmed"
+                      ? C.emerald
+                      : d.kind === "closed"
+                      ? C.rose
+                      : C.amber,
+                }}
+              >
+                {d.kind.toUpperCase()}
+              </span>
+              <span className="flex-1 text-[12px]" style={{ color: C.ink }}>
+                {d.text}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Errors as system-style row */}
+      {cycle.errors.length > 0 && (
+        <div className="mt-4 space-y-1">
+          {cycle.errors.map((e, i) => (
+            <div
+              key={i}
+              className="flex gap-3 rounded-sm px-3 py-2 text-[11px]"
+              style={{
+                background: "rgba(224,117,112,0.04)",
+                border: `1px solid rgba(224,117,112,0.18)`,
+                color: C.rose,
+              }}
+            >
+              <span className="text-[9px] font-semibold tracking-[0.22em] opacity-80">FAULT</span>
+              <span className="flex-1 leading-snug" style={{ color: "#F1A09B" }}>
+                {e.text}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tools used — tiny chips, not spam */}
+      {cycle.tools.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
+          <span
+            className="text-[9px] tracking-[0.2em]"
+            style={{ color: C.inkFaint }}
+          >
+            TOOLS
+          </span>
+          {cycle.tools.map((t, i) => (
+            <ToolChip key={i} t={t} />
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function ToolChip({ t }: { t: { name: string; status: "running" | "ok" | "fail" } }) {
+  const color =
+    t.status === "ok" ? C.teal : t.status === "fail" ? C.rose : C.inkSoft;
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-[9.5px]"
+      style={{
+        color,
+        background: `${color}0a`,
+        border: `1px solid ${color}33`,
+        fontFamily: 'ui-monospace, "SF Mono", monospace',
+        letterSpacing: "0.04em",
+      }}
+    >
+      {t.status === "running" && <Spinner color={color} />}
+      {t.name}
+    </span>
+  );
+}
+
+function Spinner({ color }: { color: string }) {
+  return (
+    <span
+      className="inline-block rounded-full"
+      style={{
+        width: 6,
+        height: 6,
+        border: `1px solid ${color}55`,
+        borderTopColor: color,
+        animation: "lyra-spin 0.9s linear infinite",
+      }}
+    />
+  );
+}
+
+// ─── Side instruments ────────────────────────────────────────────────────────
 
 function Section({
   label,
@@ -466,22 +701,14 @@ function Row({ k, v, dim }: { k: string; v: string; dim?: boolean }) {
   return (
     <div className="flex items-baseline justify-between text-[10.5px]">
       <span style={{ color: C.inkDim }}>{k}</span>
-      <span
-        className="tabular-nums"
-        style={{ color: dim ? C.inkSoft : C.ink }}
-      >
-        {v}
-      </span>
+      <span className="tabular-nums" style={{ color: dim ? C.inkSoft : C.ink }}>{v}</span>
     </div>
   );
 }
 
 function Dot({ color, pulse }: { color: string; pulse?: boolean }) {
   return (
-    <span
-      className="relative inline-flex"
-      style={{ width: 6, height: 6 }}
-    >
+    <span className="relative inline-flex" style={{ width: 6, height: 6 }}>
       <span
         className="absolute inset-0 rounded-full"
         style={{ background: color, boxShadow: `0 0 8px ${color}88` }}
@@ -511,7 +738,6 @@ function Pulse({
   const breathing = state !== "RESTING" && state !== "FAULT";
   return (
     <div className="relative" style={{ width: 56, height: 56 }}>
-      {/* outer ring */}
       <div
         className="absolute inset-0 rounded-full"
         style={{
@@ -519,7 +745,6 @@ function Pulse({
           animation: breathing ? "lyra-breathe 4s ease-in-out infinite" : undefined,
         }}
       />
-      {/* mid ring (rotates slowly when SCANNING) */}
       <div
         className="absolute inset-2 rounded-full"
         style={{
@@ -530,7 +755,6 @@ function Pulse({
               : undefined,
         }}
       />
-      {/* core */}
       <div
         className="absolute rounded-full"
         style={{
@@ -553,8 +777,7 @@ function MarketRow({
   mark?: number;
   trend?: string;
 }) {
-  const trendColor =
-    trend === "up" ? C.emerald : trend === "down" ? C.rose : C.inkDim;
+  const trendColor = trend === "up" ? C.emerald : trend === "down" ? C.rose : C.inkDim;
   return (
     <div className="flex items-baseline justify-between text-[10.5px] tabular-nums">
       <span style={{ color: C.inkSoft }}>{symbol}</span>
@@ -619,49 +842,9 @@ function MemoryItem({ m }: { m: MemoryLesson }) {
           {conf}%
         </span>
       </div>
-      <p
-        className="mt-1.5 text-[11px] leading-[1.55]"
-        style={{ color: C.inkSoft }}
-      >
+      <p className="mt-1.5 text-[11px] leading-[1.55]" style={{ color: C.inkSoft }}>
         {m.content}
       </p>
-    </div>
-  );
-}
-
-function FeedRow({ entry, isLast }: { entry: FeedEntry; isLast: boolean }) {
-  const meta = TYPE_META[entry.type];
-  const isThought = entry.type === "thought";
-  const opacity =
-    meta.weight === "ghost" ? 0.45 : meta.weight === "soft" ? 0.78 : 1;
-
-  return (
-    <div className="flex gap-4" style={{ opacity }}>
-      <span
-        className="w-[60px] shrink-0 pt-[2px] text-right text-[10px] tabular-nums"
-        style={{ color: C.inkFaint }}
-      >
-        {entry.ts}
-      </span>
-      <span
-        className="w-[50px] shrink-0 pt-[2px] text-right text-[9px] font-semibold tracking-[0.16em]"
-        style={{ color: meta.color }}
-      >
-        {meta.label}
-      </span>
-      <span
-        className={`flex-1 break-words text-[12px] leading-[1.65] ${isThought && isLast ? "lyra-cursor" : ""}`}
-        style={{
-          color: isThought ? C.ink : meta.color,
-          fontFamily: isThought
-            ? "Inter, ui-sans-serif, system-ui, sans-serif"
-            : 'ui-monospace, "SF Mono", "JetBrains Mono", "Menlo", monospace',
-          fontSize: isThought ? 12 : 11,
-          letterSpacing: isThought ? 0 : "0.01em",
-        }}
-      >
-        {entry.content}
-      </span>
     </div>
   );
 }
@@ -679,10 +862,7 @@ function EmptyMind() {
             animation: "lyra-glow 2.8s ease-in-out infinite",
           }}
         />
-        <span
-          className="text-[10px] tracking-[0.28em]"
-          style={{ color: C.inkDim }}
-        >
+        <span className="text-[10px] tracking-[0.28em]" style={{ color: C.inkDim }}>
           AWAITING SIGNAL
         </span>
       </div>
@@ -742,7 +922,7 @@ function Keyframes() {
         margin-left: 4px;
         color: ${C.amber};
         animation: lyra-blink 1.05s steps(1) infinite;
-        font-size: 10px;
+        font-size: 11px;
       }
       ::-webkit-scrollbar { width: 6px; height: 6px; }
       ::-webkit-scrollbar-track { background: transparent; }
@@ -751,8 +931,6 @@ function Keyframes() {
     `}</style>
   );
 }
-
-// ─── Misc ───────────────────────────────────────────────────────────────────
 
 function formatUptime(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
