@@ -282,6 +282,8 @@ export default function LyraWatchPage() {
   const [survival, setSurvival] = useState<Survival | null>(null);
   const [accountValue, setAccountValue] = useState<number | null>(null);
   const [availableMargin, setAvailableMargin] = useState<number | null>(null);
+  const [hlMarginStatus, setHlMarginStatus] = useState<"ok" | "not_configured" | "fetch_failed" | null>(null);
+  const [hlMarginError, setHlMarginError] = useState<string | null>(null);
   // symbol → rolling array of marks (oldest → newest), used for sparklines.
   const [trail, setTrail] = useState<Record<string, number[]>>({});
   const [agent, setAgent] = useState<AgentStatus | null>(null);
@@ -374,6 +376,10 @@ export default function LyraWatchPage() {
           setAccountValue(msg.data.accountValue as number);
           if (typeof msg.data?.availableMargin === "number") setAvailableMargin(msg.data.availableMargin as number);
           else if (typeof msg.data?.withdrawable === "number") setAvailableMargin(msg.data.withdrawable as number);
+          if (msg.type === "scan" && typeof msg.data?.hlMarginStatus === "string") {
+            setHlMarginStatus(msg.data.hlMarginStatus as "ok" | "not_configured" | "fetch_failed");
+            setHlMarginError(typeof msg.data.hlMarginError === "string" ? msg.data.hlMarginError : null);
+          }
         }
         // Memories — populated at cycle start (scan) and on write_memory
         if (msg.type === "scan" && Array.isArray(msg.data?.memories)) {
@@ -583,6 +589,30 @@ export default function LyraWatchPage() {
               <Row k="max leverage"   v={agent ? `${agent.constraints.maxLeverage}×` : "—"} />
               <Row k="max concurrent" v={agent ? String(agent.constraints.maxPositions) : "—"} />
               <Row k="wallet"         v={shortAddress(agent?.hlAddress ?? null)} dim />
+              {(hlMarginStatus === "not_configured" || hlMarginStatus === "fetch_failed") && (
+                <div
+                  className="rounded-md px-2 py-2 text-[9px] leading-snug"
+                  style={{
+                    color: C.rose,
+                    background: `${C.rose}12`,
+                    border: `1px solid ${C.hairline}`,
+                  }}
+                >
+                  {hlMarginStatus === "not_configured" ? (
+                    <>
+                      <span className="font-semibold">Wallet not wired.</span>{" "}
+                      Set <span className="font-mono">LYRA_HL_ADDRESS</span> (master) and{" "}
+                      <span className="font-mono">LYRA_HL_PRIVATE_KEY</span> (API signer). Mainnet:{" "}
+                      <span className="font-mono">LYRA_HL_TESTNET=false</span>.
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-semibold">Balance fetch failed.</span>{" "}
+                      {hlMarginError ?? "Check network, address, and testnet vs mainnet."}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </Section>
 
