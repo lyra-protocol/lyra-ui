@@ -31,7 +31,18 @@ type Survival = {
   netToday: number;
   hitTargetToday: boolean;
   runwayDays: number | null;
+  /** Total account equity from Hyperliquid (same input as survival math). */
+  equityUsd?: number;
+  /** Sum of unrealizedPnl on open perps — HL clearinghouse, excludes closed-book realized. */
+  openUnrealizedPnl?: number;
 };
+
+function formatAgentAge(ageDays: number): string {
+  if (!Number.isFinite(ageDays) || ageDays < 0) return "—";
+  if (ageDays < 1 / 24) return `${Math.max(1, Math.round(ageDays * 24 * 60))}m`;
+  if (ageDays < 1) return `${(ageDays * 24).toFixed(1)}h`;
+  return `${ageDays.toFixed(1)} days`;
+}
 
 // ─── Tokens ──────────────────────────────────────────────────────────────────
 
@@ -70,7 +81,9 @@ export default function LyraProfilePage() {
           fetch("/api/lyra/survival").then((r) => (r.ok ? r.json() : null)),
         ]);
         if (a) setAgent(a as AgentStatus);
-        if (s) setSurvival(s as Survival);
+        if (s && typeof (s as Survival).ageDays === "number" && !(s as { error?: string }).error) {
+          setSurvival(s as Survival);
+        }
       } catch { /* noop */ }
     };
     poll();
@@ -181,7 +194,7 @@ export default function LyraProfilePage() {
               <Pill
                 icon="◇"
                 label="alive"
-                value={survival ? `${survival.ageDays.toFixed(1)} days` : "—"}
+                value={survival ? formatAgentAge(survival.ageDays) : "—"}
               />
               <Pill
                 icon="●"
@@ -196,11 +209,11 @@ export default function LyraProfilePage() {
 
       {/* ── Vital stats grid ────────────────────────────────── */}
       <section className="relative z-10 mx-auto max-w-[920px] px-8 pb-10">
-        <div className="grid grid-cols-1 gap-px sm:grid-cols-2 lg:grid-cols-4" style={{ background: C.hairline }}>
+        <div className="grid grid-cols-1 gap-px sm:grid-cols-2 lg:grid-cols-5" style={{ background: C.hairline }}>
           <Vital
-            label="PNL TODAY"
+            label="TODAY · EQUITY Δ"
             value={survival ? fmtSigned(survival.pnlToday) : "—"}
-            sub={survival ? `target $${survival.dailyTarget.toFixed(0)}` : ""}
+            sub={survival ? `vs UTC day open · incl. open · target $${survival.dailyTarget.toFixed(0)}` : ""}
             color={
               !survival
                 ? C.inkSoft
@@ -214,6 +227,22 @@ export default function LyraProfilePage() {
                 : 0
             }
             progressColor={hue}
+          />
+          <Vital
+            label="OPEN · uPnL (HL)"
+            value={
+              survival && typeof survival.openUnrealizedPnl === "number"
+                ? fmtSigned(survival.openUnrealizedPnl)
+                : "—"
+            }
+            sub="unrealized on open perps"
+            color={
+              !survival || survival.openUnrealizedPnl === undefined
+                ? C.inkSoft
+                : survival.openUnrealizedPnl >= 0
+                ? C.emerald
+                : C.rose
+            }
           />
           <Vital
             label="RUNWAY"
@@ -238,9 +267,9 @@ export default function LyraProfilePage() {
             }
           />
           <Vital
-            label="LIFETIME PNL"
+            label="REALIZED · CLOSED"
             value={survival ? fmtSigned(survival.realizedPnl) : "—"}
-            sub={survival ? `${survival.tradesClosed} trades closed` : ""}
+            sub={survival ? `${survival.tradesClosed} trades closed · locked at exit` : ""}
             color={!survival ? C.inkSoft : survival.realizedPnl >= 0 ? C.emerald : C.rose}
           />
           <Vital
