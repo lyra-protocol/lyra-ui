@@ -7,6 +7,8 @@ import {
   useState,
   useCallback,
 } from "react";
+import type { MarketTicker } from "@/core/market/types";
+import { useLiveMarketTickers } from "@/hooks/use-live-market-tickers";
 import { Markdown } from "./markdown";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -32,6 +34,8 @@ type Position = {
   entryPrice: number;
   unrealizedPnl: number;
   leverage: number;
+  /** Filled when recomputing from Hyperliquid allMids WebSocket */
+  liveMark?: number;
 };
 
 type AgentStatus = {
@@ -86,6 +90,28 @@ type Survival = {
   winRate: number | null;
   bornAt: string;
 };
+
+/** Recompute uPnL from live perp mid (agent SSE only refreshes each scan cycle). */
+function mergePositionsWithLiveMids(
+  positions: Position[],
+  tickers: Record<string, MarketTicker>,
+): Position[] {
+  return positions.map((p) => {
+    const pid = `${p.symbol}-USD`;
+    const price = tickers[pid]?.price;
+    if (!price || !Number.isFinite(price) || price <= 0) return p;
+    const delta = p.direction === "long" ? price - p.entryPrice : p.entryPrice - price;
+    const unrealizedPnl = delta * p.size;
+    return { ...p, unrealizedPnl, liveMark: price };
+  });
+}
+
+function formatAgentAge(ageDays: number): string {
+  if (!Number.isFinite(ageDays) || ageDays < 0) return "—";
+  if (ageDays < 1 / 24) return `${Math.max(1, Math.round(ageDays * 24 * 60))}m`;
+  if (ageDays < 1) return `${(ageDays * 24).toFixed(1)}h`;
+  return `${ageDays.toFixed(1)} days`;
+}
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 
@@ -295,6 +321,30 @@ export default function LyraWatchPage() {
   const feedRef = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
 
+  const hlProductIds = useMemo(() => {
+    const ids = new Set<string>(["SOL-USD", "BTC-USD", "ETH-USD"]);
+    for (const p of positions) ids.add(`${p.symbol}-USD`);
+    return [...ids];
+  }, [positions]);
+
+  const liveTickers = useLiveMarketTickers(hlProductIds, { testnet: agent?.testnet ?? false });
+
+  const positionsLive = useMemo(
+    () => mergePositionsWithLiveMids(positions, liveTickers),
+    [positions, liveTickers],
+  );
+
+  const marketsLive = useMemo(() => {
+    const rows = markets.length
+      ? markets
+      : ([{ symbol: "SOL" }, { symbol: "BTC" }, { symbol: "ETH" }] as MarketTick[]);
+    return rows.map((m) => {
+      const t = liveTickers[`${m.symbol}-USD`]?.price;
+      if (t && Number.isFinite(t) && t > 0) return { ...m, mark: t };
+      return m;
+    });
+  }, [markets, liveTickers]);
+
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
@@ -307,12 +357,21 @@ export default function LyraWatchPage() {
     ]);
   }, []);
 
-  // Status poll
+  // Status + survival poll (survival uses live account equity from agent /survival)
   useEffect(() => {
     const poll = async () => {
       try {
-        const res = await fetch("/api/lyra/status");
-        if (res.ok) setAgent(await res.json() as AgentStatus);
+        const [statusRes, survivalRes] = await Promise.all([
+          fetch("/api/lyra/status"),
+          fetch("/api/lyra/survival"),
+        ]);
+        if (statusRes.ok) setAgent(await statusRes.json() as AgentStatus);
+        if (survivalRes.ok) {
+          const data = await survivalRes.json() as Survival & { error?: string };
+          if (data && typeof data.ageDays === "number" && !data.error) {
+            setSurvival(data);
+          }
+        }
       } catch { /* offline */ }
     };
     poll();
@@ -535,10 +594,10 @@ export default function LyraWatchPage() {
             {survival && <SurvivalPanel s={survival} />}
           </Section>
 
-          <Section label="MARKETS" right={`${markets.length}`}>
+          <Section label="MARKETS" right={`${marketsLive.length}`}>
             <div className="space-y-2 px-5 py-3.5">
-              {(markets.length
-                ? markets
+              {(marketsLive.length
+                ? marketsLive
                 : [{ symbol: "SOL" }, { symbol: "BTC" }, { symbol: "ETH" }]
               ).map((m) => (
                 <MarketRow
@@ -655,14 +714,14 @@ export default function LyraWatchPage() {
         >
           <Section
             label="POSITIONS"
-            right={`${positions.length} / ${agent?.constraints.maxPositions ?? 3}`}
+            right={`${positionsLive.length} / ${agent?.constraints.maxPositions ?? 3}`}
           >
             <div className="px-5 py-3.5">
-              {positions.length === 0 ? (
+              {positionsLive.length === 0 ? (
                 <Empty text="No open positions" />
               ) : (
                 <div className="space-y-2">
-                  {positions.map((p) => <PositionCard key={p.symbol} p={p} />)}
+                  {positionsLive.map((p) => <PositionCard key={p.symbol} p={p} />)}
                 </div>
               )}
             </div>
@@ -1065,7 +1124,7 @@ function SurvivalPanel({ s }: { s: Survival }) {
           AGE
         </span>
         <span className="text-[10px] tabular-nums" style={{ color: C.inkSoft }}>
-          {s.ageDays.toFixed(1)} days
+          {formatAgentAge(s.ageDays)}
         </span>
       </div>
     </div>
@@ -1278,6 +1337,11 @@ function PositionCard({ p }: { p: Position }) {
       </div>
       <div className="mt-1.5 text-[10px] tabular-nums" style={{ color: C.inkDim }}>
         {p.size.toFixed(4)} @ {fmtUsd(p.entryPrice)}
+        {p.liveMark !== undefined && (
+          <span className="ml-1.5" style={{ color: C.teal }}>
+            mid {fmtUsd(p.liveMark)}
+          </span>
+        )}
       </div>
       <div
         className="mt-2 text-[12px] font-semibold tabular-nums"

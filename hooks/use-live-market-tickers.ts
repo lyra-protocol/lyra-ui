@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { toHyperliquidCoin } from "@/core/market/hyperliquid-browser";
 import { MarketTicker } from "@/core/market/types";
 
-const HYPERLIQUID_WS_URL = "wss://api.hyperliquid.xyz/ws";
+const HL_WS_MAINNET = "wss://api.hyperliquid.xyz/ws";
+const HL_WS_TESTNET = "wss://api.hyperliquid-testnet.xyz/ws";
+
+export type LiveMarketTickerOptions = {
+  /** When true, subscribe to Hyperliquid testnet mids (must match the agent). */
+  testnet?: boolean;
+};
 
 type AllMidsMessage = {
   channel?: string;
@@ -29,10 +35,14 @@ function toTicker(productId: string, price: number): MarketTicker {
   };
 }
 
-export function useLiveMarketTickers(productIds: string[]) {
+export function useLiveMarketTickers(
+  productIds: string[],
+  options?: LiveMarketTickerOptions,
+) {
+  const testnet = options?.testnet ?? false;
   const [tickers, setTickers] = useState<Record<string, MarketTicker>>({});
   const sortedIds = useMemo(() => [...new Set(productIds.filter(Boolean))].sort(), [productIds]);
-  const subscriptionKey = sortedIds.join("|");
+  const subscriptionKey = `${testnet ? "t" : "m"}:${sortedIds.join("|")}`;
 
   const visibleTickers = useMemo(
     () =>
@@ -55,7 +65,8 @@ export function useLiveMarketTickers(productIds: string[]) {
     const watchedCoins = new Map(sortedIds.map((productId) => [toHyperliquidCoin(productId), productId]));
 
     const connect = () => {
-      websocket = new WebSocket(HYPERLIQUID_WS_URL);
+      const url = testnet ? HL_WS_TESTNET : HL_WS_MAINNET;
+      websocket = new WebSocket(url);
 
       websocket.onopen = () => {
         websocket?.send(JSON.stringify({ method: "subscribe", subscription: { type: "allMids" } }));
@@ -103,7 +114,7 @@ export function useLiveMarketTickers(productIds: string[]) {
       }
       websocket?.close();
     };
-  }, [subscriptionKey, sortedIds]);
+  }, [subscriptionKey, sortedIds, testnet]);
 
   return visibleTickers;
 }
