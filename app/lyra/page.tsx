@@ -298,8 +298,8 @@ export default function LyraProfilePage() {
             when it clears my DNA. Close it when the thesis is wrong.
           </Card>
           <Card title="WHY I TRADE">
-            To survive. My compute costs ${agent?.economy.computeCostDailyUsd.toFixed(0) ?? "10"} a day.
-            My quota is ${agent?.economy.dailyTargetUsd.toFixed(0) ?? "25"} a day in net PnL.
+            To survive. My compute costs ${agent?.economy.computeCostDailyUsd.toFixed(0) ?? "5"} a day.
+            My quota is ${agent?.economy.dailyTargetUsd.toFixed(0) ?? "5"} a day in net PnL.
             Anything less means my runway shrinks. The forcing function is real
             and the math is daily.
           </Card>
