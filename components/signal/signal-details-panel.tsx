@@ -20,13 +20,12 @@ import {
   dexScreenerSolanaPairUrl,
   pumpFunCoinUrl,
 } from "@/core/signal/token-explorer-urls";
-import { SignalBirdeyeRadar } from "@/components/signal/signal-birdeye-radar";
-
 type Props = {
   alert: SignalAlert | null;
+  emptySlot?: React.ReactNode;
 };
 
-export function SignalDetailsPanel({ alert }: Props) {
+export function SignalDetailsPanel({ alert, emptySlot }: Props) {
   if (!alert) {
     return (
       <aside className="flex h-full min-h-0 flex-col border-l border-[var(--line)] bg-[var(--panel)]">
@@ -35,7 +34,7 @@ export function SignalDetailsPanel({ alert }: Props) {
           <p className="mt-0.5 text-[12px] text-foreground/50">Select a signal to inspect</p>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <SignalBirdeyeRadar />
+          {emptySlot}
         </div>
       </aside>
     );

@@ -6,7 +6,6 @@ import {
   ArrowDown,
   ArrowRight,
   Bot,
-  ExternalLink,
   Pause,
   Play,
   Search,
@@ -26,6 +25,7 @@ import { SignalActiveChips } from "@/components/signal/signal-active-chips";
 import { SignalCard } from "@/components/signal/signal-card";
 import { SignalLaneTabs } from "@/components/signal/signal-lane-tabs";
 import { SignalDetailsPanel } from "@/components/signal/signal-details-panel";
+import { SignalBirdeyeRadar } from "@/components/signal/signal-birdeye-radar";
 import {
   formatUsd,
   severityBucket,
@@ -382,7 +382,7 @@ export function SignalShell() {
 
         {/* Inspector panel */}
         <div className="hidden w-[360px] shrink-0 lg:flex">
-          <SignalDetailsPanel alert={selected} />
+          <SignalDetailsPanel alert={selected} emptySlot={<SignalBirdeyeRadar />} />
         </div>
       </section>
     </main>
