@@ -10,6 +10,7 @@ import {
   ruleAccent,
   ruleLabel,
   severityOf,
+  signalSymbol,
   timestampLabel,
 } from "@/components/signal/signal-format";
 
@@ -49,7 +50,7 @@ export function SignalTapeRow({ alert, active, onSelect }: Props) {
       : isSell
         ? "text-[var(--negative)]"
         : "text-foreground/70";
-  const symbol = event.metadata?.pump?.symbol;
+  const symbol = signalSymbol(alert);
 
   return (
     <button

@@ -22,6 +22,11 @@ const RULES: Array<{ id: SignalRule; label: string }> = [
   { id: "early_buy_index", label: "Early buy" },
   { id: "volume_acceleration", label: "Volume surge" },
   { id: "bonding_migration", label: "Graduated" },
+  { id: "new_launch", label: "New launch" },
+  { id: "trending_breakout", label: "Trending" },
+  { id: "whale_move", label: "Whale move" },
+  { id: "top_gainer", label: "Top gainer" },
+  { id: "momentum_spike", label: "Momentum" },
 ];
 
 const ACTIONS: Array<{ id: SignalAction; label: string }> = [
@@ -36,6 +41,7 @@ const SOURCES: Array<{ id: SignalSourceId; label: string }> = [
   { id: "pump", label: "pump.fun" },
   { id: "dexscreener", label: "dexscreener" },
   { id: "gmgn", label: "gmgn" },
+  { id: "birdeye", label: "Birdeye" },
 ];
 
 const USD_PRESETS = [100, 500, 1_000, 5_000, 25_000];

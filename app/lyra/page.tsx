@@ -35,6 +35,11 @@ type Survival = {
   equityUsd?: number;
   /** Sum of unrealizedPnl on open perps — HL clearinghouse, excludes closed-book realized. */
   openUnrealizedPnl?: number;
+  /** Free collateral for new perps (from agent /survival). */
+  availableMargin?: number;
+  withdrawable?: number;
+  marginSource?: "ok" | "not_configured" | "fetch_failed";
+  marginError?: string | null;
 };
 
 function formatAgentAge(ageDays: number): string {
@@ -287,6 +292,64 @@ export default function LyraProfilePage() {
         </div>
       </section>
 
+      {/* ── Hyperliquid readiness (same payload as economics) ───────── */}
+      {survival && (
+        <section className="relative z-10 mx-auto max-w-[920px] px-8 pb-6">
+          <SectionHeader>EXCHANGE</SectionHeader>
+          <div
+            className="mt-4 rounded-lg border px-5 py-4 text-[13px] leading-relaxed"
+            style={{
+              borderColor: C.hairline,
+              background: C.bg,
+              color: C.inkSoft,
+            }}
+          >
+            <div className="flex flex-wrap gap-x-8 gap-y-2">
+              <span>
+                <span style={{ color: C.inkFaint }} className="mr-2 text-[10px] tracking-[0.2em]">
+                  AVAILABLE
+                </span>
+                <span className="tabular-nums" style={{ color: C.ink }}>
+                  {typeof survival.availableMargin === "number"
+                    ? `$${survival.availableMargin.toFixed(2)}`
+                    : "—"}
+                </span>
+              </span>
+              <span>
+                <span style={{ color: C.inkFaint }} className="mr-2 text-[10px] tracking-[0.2em]">
+                  STATUS
+                </span>
+                <span style={{ color: C.ink }}>
+                  {survival.marginSource === "not_configured"
+                    ? "Not configured"
+                    : survival.marginSource === "fetch_failed"
+                      ? "Fetch failed"
+                      : "Connected"}
+                </span>
+              </span>
+            </div>
+            {survival.marginSource === "not_configured" && (
+              <p className="mt-3 text-[12px]" style={{ color: C.rose }}>
+                Set <code className="text-[11px]">LYRA_HL_ADDRESS</code> (master) and{" "}
+                <code className="text-[11px]">LYRA_HL_PRIVATE_KEY</code> (API signer) on the agent. No trades route
+                until this is wired.
+              </p>
+            )}
+            {survival.marginSource === "fetch_failed" && (
+              <p className="mt-3 text-[12px]" style={{ color: C.rose }}>
+                {survival.marginError ?? "Could not read Hyperliquid. Check address, RPC, and testnet vs mainnet."}
+              </p>
+            )}
+            {survival.marginSource === "ok" && typeof survival.availableMargin === "number" && survival.availableMargin <= 0 && (
+              <p className="mt-3 text-[12px]" style={{ color: C.amber }}>
+                Reported free margin is $0 — the agent still runs full reasoning cycles; the exchange only accepts sizes
+                that fit collateral. Fund the master wallet or free margin from open positions.
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* ── Identity / mission ──────────────────────────────── */}
       <section className="relative z-10 mx-auto max-w-[920px] px-8 pb-10">
         <SectionHeader>MISSION</SectionHeader>
@@ -294,8 +357,8 @@ export default function LyraProfilePage() {
           <Card title="WHAT I DO">
             Read SOL, BTC, ETH every {agent?.scanIntervalMs ? `${agent.scanIntervalMs / 1000} seconds` : "30 seconds"}.
             Look for asymmetric setups — RSI divergence, EMA cross with volume,
-            crowded funding to fade, levels worth respecting. Take the trade
-            when it clears my DNA. Close it when the thesis is wrong.
+            crowded funding to fade, levels worth respecting. Enter when R:R and
+            invalidation are clear; Hyperliquid caps size by live margin. Close when the thesis is wrong.
           </Card>
           <Card title="WHY I TRADE">
             To survive. My compute costs ${agent?.economy.computeCostDailyUsd.toFixed(0) ?? "5"} a day.
@@ -319,7 +382,11 @@ export default function LyraProfilePage() {
 
       {/* ── DNA constraints ─────────────────────────────────── */}
       <section className="relative z-10 mx-auto max-w-[920px] px-8 pb-10">
-        <SectionHeader>DNA</SectionHeader>
+        <SectionHeader>REFERENCE LIMITS</SectionHeader>
+        <p className="mb-4 max-w-[720px] text-[12px]" style={{ color: C.inkDim }}>
+          Shown for transparency; the exchange enforces margin and asset limits. No software halt layer — survival
+          economics above are targets, not kill switches.
+        </p>
         <div className="mt-5 grid grid-cols-2 gap-px sm:grid-cols-3" style={{ background: C.hairline }}>
           <DnaCell
             label="MAX LEVERAGE"

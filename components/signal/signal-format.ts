@@ -40,18 +40,23 @@ export function formatWallet(wallet: string) {
 }
 
 export function ruleLabel(rule: SignalAlert["primaryRule"]) {
-  if (rule === "large_wallet_usd") return "Whale";
+  if (rule === "large_wallet_usd" || rule === "whale_move") return "Whale";
   if (rule === "early_buy_index") return "Early";
   if (rule === "volume_acceleration") return "Volume";
   if (rule === "bonding_migration") return "Graduate";
+  if (rule === "new_launch") return "Launch";
+  if (rule === "trending_breakout") return "Trending";
+  if (rule === "top_gainer") return "Gainer";
+  if (rule === "momentum_spike") return "Momentum";
   return rule;
 }
 
 export function ruleAccent(rule: SignalAlert["primaryRule"]) {
-  if (rule === "large_wallet_usd") return "text-yellow-400";
-  if (rule === "early_buy_index") return "text-blue-400";
-  if (rule === "volume_acceleration") return "text-fuchsia-400";
-  if (rule === "bonding_migration") return "text-emerald-400";
+  if (rule === "large_wallet_usd" || rule === "whale_move") return "text-yellow-400";
+  if (rule === "early_buy_index" || rule === "new_launch") return "text-blue-400";
+  if (rule === "volume_acceleration" || rule === "trending_breakout") return "text-fuchsia-400";
+  if (rule === "bonding_migration" || rule === "top_gainer") return "text-emerald-400";
+  if (rule === "momentum_spike") return "text-orange-400";
   return "text-foreground/70";
 }
 
@@ -61,7 +66,7 @@ export function ruleAccent(rule: SignalAlert["primaryRule"]) {
  */
 export function severityOf(alert: SignalAlert): 0 | 1 | 2 | 3 {
   const usd = alert.event.sizeUsd || 0;
-  if (alert.primaryRule === "large_wallet_usd" || usd >= 50_000) return 3;
+  if (alert.primaryRule === "large_wallet_usd" || alert.primaryRule === "whale_move" || usd >= 50_000) return 3;
   if (usd >= 5_000) return 2;
   if (usd >= 500) return 1;
   return 0;
@@ -73,9 +78,10 @@ export type ClientSeverity = "info" | "notable" | "alert" | "critical";
 export function severityBucket(alert: SignalAlert): ClientSeverity {
   if (alert.severity) return alert.severity;
   const usd = alert.event.sizeUsd || 0;
-  if (alert.primaryRule === "large_wallet_usd" && usd >= 50_000) return "critical";
-  if (alert.primaryRule === "large_wallet_usd" && usd >= 10_000) return "alert";
-  if (alert.primaryRule === "large_wallet_usd") return "notable";
+  if ((alert.primaryRule === "large_wallet_usd" || alert.primaryRule === "whale_move") && usd >= 50_000) return "critical";
+  if ((alert.primaryRule === "large_wallet_usd" || alert.primaryRule === "whale_move") && usd >= 10_000) return "alert";
+  if (alert.primaryRule === "large_wallet_usd" || alert.primaryRule === "whale_move") return "notable";
+  if (["new_launch", "trending_breakout", "top_gainer", "momentum_spike"].includes(alert.primaryRule)) return alert.score && alert.score >= 85 ? "critical" : "alert";
   if (alert.event.action === "create" && usd >= 500) return "alert";
   if (alert.event.action === "create") return "notable";
   if (usd >= 10_000) return "alert";
@@ -102,4 +108,12 @@ export function severityDot(severity: ClientSeverity) {
   if (severity === "alert") return "bg-yellow-400";
   if (severity === "notable") return "bg-blue-400";
   return "bg-foreground/35";
+}
+
+export function signalSymbol(alert: SignalAlert) {
+  return alert.event.metadata?.pump?.symbol ?? alert.event.metadata?.birdeye?.symbol ?? null;
+}
+
+export function signalName(alert: SignalAlert) {
+  return alert.event.metadata?.pump?.name ?? alert.event.metadata?.birdeye?.name ?? null;
 }

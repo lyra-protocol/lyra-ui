@@ -7,3 +7,7 @@ export function pumpFunCoinUrl(mint: string): string {
 export function dexScreenerSolanaPairUrl(mint: string): string {
   return `https://dexscreener.com/solana/${encodeURIComponent(mint.trim())}`;
 }
+
+export function birdeyeSolanaTokenUrl(mint: string): string {
+  return `https://birdeye.so/token/${encodeURIComponent(mint.trim())}?chain=solana`;
+}

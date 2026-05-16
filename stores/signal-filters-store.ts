@@ -95,10 +95,10 @@ export function applyFeedLane(
 ): SignalAlert[] {
   if (lane === "all") return alerts;
   if (lane === "launches") {
-    return alerts.filter((a) => a.event.action === "create");
+    return alerts.filter((a) => a.event.action === "create" || a.primaryRule === "new_launch");
   }
   if (lane === "whales") {
-    return alerts.filter((a) => a.primaryRule === "large_wallet_usd");
+    return alerts.filter((a) => a.primaryRule === "large_wallet_usd" || a.primaryRule === "whale_move");
   }
   if (lane === "early_cluster") {
     return alerts.filter(
@@ -106,7 +106,7 @@ export function applyFeedLane(
     );
   }
   if (lane === "surge") {
-    return alerts.filter((a) => a.primaryRule === "volume_acceleration");
+    return alerts.filter((a) => a.primaryRule === "volume_acceleration" || a.primaryRule === "trending_breakout" || a.primaryRule === "momentum_spike" || a.primaryRule === "top_gainer");
   }
   if (lane === "graduate") {
     return alerts.filter(
@@ -129,8 +129,8 @@ export function applyFilters(
     if (filters.sources.length && !filters.sources.includes(alert.event.source)) return false;
     if (filters.minUsd > 0 && alert.event.sizeUsd < filters.minUsd) return false;
     if (trimmed) {
-      const symbol = alert.event.metadata?.pump?.symbol?.toLowerCase() ?? "";
-      const name = alert.event.metadata?.pump?.name?.toLowerCase() ?? "";
+      const symbol = (alert.event.metadata?.pump?.symbol ?? alert.event.metadata?.birdeye?.symbol)?.toLowerCase() ?? "";
+      const name = (alert.event.metadata?.pump?.name ?? alert.event.metadata?.birdeye?.name)?.toLowerCase() ?? "";
       const token = alert.event.token.toLowerCase();
       const wallet = alert.event.wallet.toLowerCase();
       if (

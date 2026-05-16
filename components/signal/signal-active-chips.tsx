@@ -9,12 +9,18 @@ const RULE_LABEL: Record<string, string> = {
   early_buy_index: "Early buy",
   volume_acceleration: "Volume",
   bonding_migration: "Graduated",
+  new_launch: "New launch",
+  trending_breakout: "Trending",
+  whale_move: "Whale move",
+  top_gainer: "Top gainer",
+  momentum_spike: "Momentum",
 };
 
 const SOURCE_LABEL: Record<string, string> = {
   pump: "pump.fun",
   dexscreener: "dexscreener",
   gmgn: "gmgn",
+  birdeye: "Birdeye",
 };
 
 export function SignalActiveChips() {

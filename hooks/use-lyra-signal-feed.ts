@@ -31,6 +31,17 @@ function mergeById(
   return merged.length > bufferSize ? merged.slice(0, bufferSize) : merged;
 }
 
+
+async function fetchRecentAlerts(limit: number): Promise<SignalAlert[]> {
+  try {
+    const res = await fetch(`/api/signals/recent?limit=${limit}`, { cache: "no-store" });
+    const json = (await res.json()) as { signals?: SignalAlert[] };
+    return Array.isArray(json.signals) ? json.signals : [];
+  } catch {
+    return [];
+  }
+}
+
 function resolveWsUrl(httpOrWsUrl: string | undefined): string | null {
   if (!httpOrWsUrl) return null;
   const trimmed = httpOrWsUrl.trim().replace(/\/+$/, "");
@@ -79,17 +90,20 @@ export function useLyraSignalFeed(options: UseLyraSignalFeedOptions = {}) {
   const pendingRef = useRef<SignalAlert[]>([]);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bufferSizeRef = useRef(bufferSize);
-  bufferSizeRef.current = bufferSize;
 
-  // Hydrate from IndexedDB cache once — gives the tape instant history.
+  useEffect(() => {
+    bufferSizeRef.current = bufferSize;
+  }, [bufferSize]);
+
+  // Hydrate from IndexedDB and the worker's recent endpoint so first load is not empty.
   useEffect(() => {
     let cancelled = false;
-    loadCachedAlerts()
-      .then((cached) => {
+    Promise.all([loadCachedAlerts(), fetchRecentAlerts(Math.min(bufferSize, 20))])
+      .then(([cached, recent]) => {
         if (cancelled) return;
-        if (cached.length) {
-          setAlerts((prev) => mergeById(cached, prev, bufferSize));
-        }
+        const initial = mergeById(recent, cached, bufferSize);
+        if (initial.length) setAlerts((prev) => mergeById(initial, prev, bufferSize));
+        if (recent.length) void upsertAlerts(recent);
       })
       .finally(() => {
         if (!cancelled) setHydrated(true);
@@ -115,10 +129,7 @@ export function useLyraSignalFeed(options: UseLyraSignalFeedOptions = {}) {
   };
 
   useEffect(() => {
-    if (!wsUrl) {
-      setStatus("disabled");
-      return;
-    }
+    if (!wsUrl) return;
     stoppedRef.current = false;
 
     const connect = () => {

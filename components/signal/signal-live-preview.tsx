@@ -6,6 +6,7 @@ import {
   formatUsd,
   severityBucket,
   severityDot,
+  signalSymbol,
   timeAgo,
 } from "@/components/signal/signal-format";
 import { cn } from "@/lib/utils";
@@ -21,13 +22,17 @@ type Props = {
 export function SignalLivePreview({ alerts }: Props) {
   const { launches, heavyFlow } = useMemo(() => {
     const launches = alerts
-      .filter((a) => a.event.action === "create")
+      .filter((a) => a.event.action === "create" || a.primaryRule === "new_launch")
       .slice(0, 12);
     const heavyFlow = alerts
       .filter(
         (a) =>
           a.primaryRule === "large_wallet_usd" ||
+          a.primaryRule === "whale_move" ||
           a.primaryRule === "volume_acceleration" ||
+          a.primaryRule === "trending_breakout" ||
+          a.primaryRule === "momentum_spike" ||
+          a.primaryRule === "top_gainer" ||
           a.primaryRule === "bonding_migration" ||
           a.event.action === "migrate",
       )
@@ -83,7 +88,7 @@ function PreviewColumn({
         <div className="flex max-h-[68px] flex-wrap gap-x-3 gap-y-1 overflow-y-auto text-[10px] leading-tight">
           {items.map((alert) => {
             const sym =
-              alert.event.metadata?.pump?.symbol?.toUpperCase() ??
+              signalSymbol(alert)?.toUpperCase() ??
               alert.event.token.slice(0, 5);
             const usd =
               alert.event.sizeUsd >= 400 ? formatUsd(alert.event.sizeUsd) : null;

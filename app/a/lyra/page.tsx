@@ -89,6 +89,12 @@ type Survival = {
   losses: number;
   winRate: number | null;
   bornAt: string;
+  /** From agent /survival — same poll as economics, keeps UI in sync without SSE. */
+  equityUsd?: number;
+  availableMargin?: number;
+  withdrawable?: number;
+  marginSource?: "ok" | "not_configured" | "fetch_failed";
+  marginError?: string | null;
 };
 
 /** Recompute uPnL from live perp mid (agent SSE only refreshes each scan cycle). */
@@ -370,6 +376,13 @@ export default function LyraWatchPage() {
           const data = await survivalRes.json() as Survival & { error?: string };
           if (data && typeof data.ageDays === "number" && !data.error) {
             setSurvival(data);
+            if (typeof data.equityUsd === "number") setAccountValue(data.equityUsd);
+            if (typeof data.availableMargin === "number") setAvailableMargin(data.availableMargin);
+            else if (typeof data.withdrawable === "number") setAvailableMargin(data.withdrawable);
+            if (typeof data.marginSource === "string") {
+              setHlMarginStatus(data.marginSource);
+              setHlMarginError(typeof data.marginError === "string" ? data.marginError : null);
+            }
           }
         }
       } catch { /* offline */ }
@@ -435,10 +448,13 @@ export default function LyraWatchPage() {
           setAccountValue(msg.data.accountValue as number);
           if (typeof msg.data?.availableMargin === "number") setAvailableMargin(msg.data.availableMargin as number);
           else if (typeof msg.data?.withdrawable === "number") setAvailableMargin(msg.data.withdrawable as number);
-          if (msg.type === "scan" && typeof msg.data?.hlMarginStatus === "string") {
-            setHlMarginStatus(msg.data.hlMarginStatus as "ok" | "not_configured" | "fetch_failed");
-            setHlMarginError(typeof msg.data.hlMarginError === "string" ? msg.data.hlMarginError : null);
-          }
+        }
+        if (
+          (msg.type === "tool_result" || msg.type === "scan") &&
+          typeof msg.data?.hlMarginStatus === "string"
+        ) {
+          setHlMarginStatus(msg.data.hlMarginStatus as "ok" | "not_configured" | "fetch_failed");
+          setHlMarginError(typeof msg.data.hlMarginError === "string" ? msg.data.hlMarginError : null);
         }
         // Memories — populated at cycle start (scan) and on write_memory
         if (msg.type === "scan" && Array.isArray(msg.data?.memories)) {
@@ -642,7 +658,15 @@ export default function LyraWatchPage() {
               <Row
                 k="available"
                 v={availableMargin !== null ? fmtUsd(availableMargin) : "—"}
-                color={availableMargin !== null && availableMargin < 20 ? C.rose : availableMargin !== null && availableMargin < 100 ? C.amber : undefined}
+                color={
+                  hlMarginStatus === "ok" && availableMargin !== null && availableMargin <= 0
+                    ? C.amber
+                    : availableMargin !== null && availableMargin > 0 && availableMargin < 20
+                      ? C.rose
+                      : availableMargin !== null && availableMargin > 0 && availableMargin < 100
+                        ? C.amber
+                        : undefined
+                }
               />
               <Row k="max position"   v={agent ? fmtUsd(agent.constraints.maxPositionUsd) : "—"} />
               <Row k="max leverage"   v={agent ? `${agent.constraints.maxLeverage}×` : "—"} />
@@ -659,8 +683,9 @@ export default function LyraWatchPage() {
                 >
                   {hlMarginStatus === "not_configured" ? (
                     <>
-                      <span className="font-semibold">Wallet not wired.</span>{" "}
-                      Set <span className="font-mono">LYRA_HL_ADDRESS</span> (master) and{" "}
+                      <span className="font-semibold">Hyperliquid not wired.</span>{" "}
+                      Orders cannot route until env is set:{" "}
+                      <span className="font-mono">LYRA_HL_ADDRESS</span> (master) +{" "}
                       <span className="font-mono">LYRA_HL_PRIVATE_KEY</span> (API signer). Mainnet:{" "}
                       <span className="font-mono">LYRA_HL_TESTNET=false</span>.
                     </>
@@ -670,6 +695,20 @@ export default function LyraWatchPage() {
                       {hlMarginError ?? "Check network, address, and testnet vs mainnet."}
                     </>
                   )}
+                </div>
+              )}
+              {hlMarginStatus === "ok" && availableMargin !== null && availableMargin <= 0 && (
+                <div
+                  className="rounded-md px-2 py-2 text-[9px] leading-snug"
+                  style={{
+                    color: C.amber,
+                    background: "rgba(244,163,64,0.08)",
+                    border: `1px solid ${C.hairline}`,
+                  }}
+                >
+                  <span className="font-semibold">Tight margin.</span>{" "}
+                  Reported free margin is $0 — the agent still runs full cycles; HL rejects entries that do not fit.
+                  Deposit USDC to the master wallet or reduce open risk to free collateral.
                 </div>
               )}
             </div>
@@ -714,7 +753,7 @@ export default function LyraWatchPage() {
         >
           <Section
             label="POSITIONS"
-            right={`${positionsLive.length} / ${agent?.constraints.maxPositions ?? 3}`}
+            right={`${positionsLive.length} / ${agent?.constraints.maxPositions ?? "—"}`}
           >
             <div className="px-5 py-3.5">
               {positionsLive.length === 0 ? (
