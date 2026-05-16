@@ -607,7 +607,7 @@ export default function LyraWatchPage() {
                 </span>
               </div>
             </div>
-            {survival && <SurvivalPanel s={survival} />}
+            {survival && <SurvivalPanel s={survival} positions={positionsLive} />}
           </Section>
 
           <Section label="MARKETS" right={`${marketsLive.length}`}>
@@ -1071,10 +1071,18 @@ function Pulse({
   );
 }
 
-function SurvivalPanel({ s }: { s: Survival }) {
-  const pnlColor = s.pnlToday >= 0 ? C.emerald : C.rose;
-  const targetPct = Math.max(0, Math.min(100, (s.pnlToday / s.dailyTarget) * 100));
-  const targetColor = s.hitTargetToday ? C.emerald : s.pnlToday > 0 ? C.amber : C.rose;
+function SurvivalPanel({ s, positions }: { s: Survival; positions: Position[] }) {
+  // Split equity-based pnlToday into realized vs open unrealized.
+  // pnlToday = currentEquity - startEquity, and currentEquity includes unrealized,
+  // so realizedToday = pnlToday - sum(openUnrealized).
+  const totalUnrealized = positions.reduce((sum, p) => sum + p.unrealizedPnl, 0);
+  const realizedToday = s.pnlToday - totalUnrealized;
+  const hasOpenPositions = positions.length > 0;
+
+  // Progress bar and quota track only realized PnL — unrealized isn't banked.
+  const pnlColor = realizedToday >= 0 ? C.emerald : C.rose;
+  const targetPct = Math.max(0, Math.min(100, (realizedToday / s.dailyTarget) * 100));
+  const targetColor = realizedToday >= s.dailyTarget ? C.emerald : realizedToday > 0 ? C.amber : C.rose;
   const runwayColor =
     s.runwayDays === null ? C.inkDim :
     s.runwayDays < 7  ? C.rose :
@@ -1086,7 +1094,7 @@ function SurvivalPanel({ s }: { s: Survival }) {
       className="space-y-3 px-5 py-4"
       style={{ borderTop: `1px solid ${C.hairline}` }}
     >
-      {/* Today's PnL vs quota */}
+      {/* Today's PnL vs quota — realized only */}
       <div>
         <div className="flex items-baseline justify-between">
           <span
@@ -1099,7 +1107,7 @@ function SurvivalPanel({ s }: { s: Survival }) {
             className="text-[10px] font-semibold tabular-nums"
             style={{ color: pnlColor }}
           >
-            {s.pnlToday >= 0 ? "+" : ""}${s.pnlToday.toFixed(2)}
+            {realizedToday >= 0 ? "+" : ""}${realizedToday.toFixed(2)}
             <span className="ml-1.5 text-[9px]" style={{ color: C.inkDim }}>
               / ${s.dailyTarget}
             </span>
@@ -1117,6 +1125,21 @@ function SurvivalPanel({ s }: { s: Survival }) {
             }}
           />
         </div>
+        {/* Show open unrealized separately so it's never confused with banked gains */}
+        {hasOpenPositions && (
+          <div className="mt-1 flex items-baseline justify-between">
+            <span className="text-[8px]" style={{ color: C.inkFaint }}>
+              open unrealized
+            </span>
+            <span
+              className="text-[9px] tabular-nums"
+              style={{ color: totalUnrealized >= 0 ? C.emerald : C.rose }}
+            >
+              {totalUnrealized >= 0 ? "+" : ""}${totalUnrealized.toFixed(2)}
+              <span className="ml-1" style={{ color: C.inkFaint }}>(not banked)</span>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Runway */}
