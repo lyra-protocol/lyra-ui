@@ -1,21 +1,49 @@
 "use client";
 
-import { ExternalLink, Rocket, Sparkles, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import type { SignalAlert } from "@/core/signal/signal-types";
-import {
-  dexScreenerSolanaPairUrl,
-  pumpFunCoinUrl,
-} from "@/core/signal/token-explorer-urls";
+import { cn } from "@/lib/utils";
 import {
   formatUsd,
   formatWallet,
   ruleLabel,
   severityBucket,
-  severityDot,
+  signalName,
+  signalSymbol,
   timeAgo,
-  timestampLabel,
 } from "@/components/signal/signal-format";
-import { cn } from "@/lib/utils";
+import {
+  birdeyeSolanaTokenUrl,
+  dexScreenerSolanaPairUrl,
+  pumpFunCoinUrl,
+} from "@/core/signal/token-explorer-urls";
+
+const RULE_STYLE: Record<string, { bar: string; chip: string; label: string }> = {
+  large_wallet_usd: { bar: "bg-amber-400",   chip: "border-amber-400/35 bg-amber-400/10 text-amber-300",   label: "WHALE"    },
+  whale_move:       { bar: "bg-amber-400",   chip: "border-amber-400/35 bg-amber-400/10 text-amber-300",   label: "WHALE"    },
+  new_launch:       { bar: "bg-blue-400",    chip: "border-blue-400/35 bg-blue-400/10 text-blue-300",      label: "LAUNCH"   },
+  early_buy_index:  { bar: "bg-sky-400",     chip: "border-sky-400/35 bg-sky-400/10 text-sky-300",         label: "EARLY"    },
+  volume_acceleration: { bar: "bg-fuchsia-400", chip: "border-fuchsia-400/35 bg-fuchsia-400/10 text-fuchsia-300", label: "SURGE" },
+  trending_breakout:{ bar: "bg-purple-400",  chip: "border-purple-400/35 bg-purple-400/10 text-purple-300", label: "TREND"   },
+  bonding_migration:{ bar: "bg-emerald-400", chip: "border-emerald-400/35 bg-emerald-400/10 text-emerald-300", label: "GRAD"  },
+  top_gainer:       { bar: "bg-emerald-400", chip: "border-emerald-400/35 bg-emerald-400/10 text-emerald-300", label: "GAIN"  },
+  momentum_spike:   { bar: "bg-orange-400",  chip: "border-orange-400/35 bg-orange-400/10 text-orange-300",  label: "MOMEN"  },
+};
+
+const DEFAULT_RULE_STYLE = {
+  bar: "bg-foreground/20",
+  chip: "border-[var(--line)] bg-[var(--panel-2)] text-foreground/50",
+  label: "SIGNAL",
+};
+
+function getRuleStyle(rule: string) {
+  return RULE_STYLE[rule] ?? DEFAULT_RULE_STYLE;
+}
+
+function sourceLabel(source: string) {
+  if (!source || source === "unknown") return null;
+  return source.toUpperCase();
+}
 
 type Props = {
   alert: SignalAlert;
@@ -24,124 +52,168 @@ type Props = {
   now: number;
 };
 
-function actionIcon(alert: SignalAlert) {
-  if (alert.event.action === "create") return Rocket;
-  if (alert.event.action === "sell") return TrendingDown;
-  if (alert.event.action === "buy") return TrendingUp;
-  if (alert.event.action === "migrate") return Sparkles;
-  return Sparkles;
-}
-
-function laneHint(alert: SignalAlert): string {
-  if (alert.event.action === "create") return "New launch";
-  if (alert.primaryRule === "bonding_migration" || alert.event.action === "migrate") {
-    return "Graduated";
-  }
-  if (alert.primaryRule === "large_wallet_usd") return "Whale print";
-  if (alert.primaryRule === "volume_acceleration") return "Volume surge";
-  if (alert.primaryRule === "early_buy_index" && alert.event.action === "buy") {
-    return "Early cluster";
-  }
-  return ruleLabel(alert.primaryRule);
-}
-
 export function SignalCard({ alert, active, onSelect, now }: Props) {
+  const { event } = alert;
   const severity = severityBucket(alert);
-  const Icon = actionIcon(alert);
-  const createdMs = new Date(alert.createdAt).getTime();
-  const fresh = now - createdMs < 8_000;
-  const symbol =
-    alert.event.metadata?.pump?.symbol?.toUpperCase() ??
-    alert.event.token.slice(0, 6);
-  const name = alert.event.metadata?.pump?.name;
-  const showUsd = alert.event.sizeUsd >= 500;
-  const mint = alert.event.token;
-  const hint = laneHint(alert);
+  const style = getRuleStyle(alert.primaryRule);
+  const symbol = signalSymbol(alert)?.toUpperCase() ?? event.token.slice(0, 6).toUpperCase();
+  const name = signalName(alert);
+  const fresh = now - new Date(alert.createdAt).getTime() < 8_000;
+  const birdeye = event.metadata?.birdeye;
+  const src = sourceLabel(event.source);
+  const mint = event.token;
+  const explorerBase = event.source === "birdeye"
+    ? birdeyeSolanaTokenUrl(mint)
+    : pumpFunCoinUrl(mint);
+
+  const usdStr = event.sizeUsd >= 500 ? formatUsd(event.sizeUsd) : null;
 
   return (
     <button
       type="button"
       onClick={onSelect}
       className={cn(
-        "group relative flex w-full gap-0 overflow-hidden rounded-[14px] border text-left transition",
-        "border-[var(--line)] bg-[var(--panel)] hover:border-[var(--line-strong)] hover:bg-foreground/[0.02]",
-        active && "border-foreground/25 bg-foreground/[0.04] ring-1 ring-foreground/10",
-        fresh && "shadow-[0_0_0_1px_rgba(250,204,21,0.12)]",
+        "group relative flex w-full overflow-hidden rounded-[10px] border text-left transition-all duration-100",
+        active
+          ? "border-foreground/20 bg-foreground/[0.05] shadow-[0_0_0_1px_rgba(255,255,255,0.05)]"
+          : "border-[var(--line)] bg-[var(--panel)] hover:border-foreground/14 hover:bg-foreground/[0.02]",
+        fresh && !active && "shadow-[0_0_16px_rgba(250,204,21,0.04)]",
       )}
     >
+      {/* Severity accent bar */}
       <span
-        className={cn(
-          "w-[3px] shrink-0",
-          severity === "critical" && "bg-red-400",
-          severity === "alert" && "bg-amber-400",
-          severity === "notable" && "bg-sky-400",
-          severity === "info" && "bg-foreground/25",
-        )}
+        className={cn("w-[3px] shrink-0 rounded-l-[10px]", style.bar)}
         aria-hidden
       />
-      <div className="flex min-w-0 flex-1 flex-col gap-2 px-3.5 py-3">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-foreground/50">
-          <span className="inline-flex items-center gap-1 font-medium uppercase tracking-[0.12em] text-foreground/40">
-            <span className={cn("h-1.5 w-1.5 rounded-full", severityDot(severity))} />
-            {hint}
-          </span>
-          <span className="rounded-md border border-[var(--line)] bg-[var(--panel-2)] px-1.5 py-px font-mono text-[9px] uppercase tracking-wide text-foreground/65">
-            {alert.event.action}
-          </span>
-          {showUsd ? (
-            <span className="font-mono tabular-nums text-foreground/80">
-              {formatUsd(alert.event.sizeUsd)}
-            </span>
-          ) : null}
+
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5 px-3.5 py-2.5">
+        {/* Row 1: rule chip · symbol · sentence · usd · time */}
+        <div className="flex min-w-0 items-center gap-2">
           <span
-            className="ml-auto font-mono text-[10px] tabular-nums text-foreground/40"
-            title={timestampLabel(alert.createdAt)}
+            className={cn(
+              "shrink-0 rounded-[4px] border px-1.5 py-px font-mono text-[9px] uppercase tracking-[0.1em]",
+              style.chip,
+            )}
           >
+            {style.label !== "SIGNAL" ? style.label : ruleLabel(alert.primaryRule)}
+          </span>
+
+          <span className="shrink-0 font-mono text-[13px] font-bold tabular-nums text-foreground">
+            {symbol}
+          </span>
+
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate text-[12px] leading-snug",
+              active ? "text-foreground/85" : "text-foreground/50",
+            )}
+          >
+            {alert.sentence}
+          </span>
+
+          {usdStr && (
+            <span
+              className={cn(
+                "shrink-0 font-mono text-[12px] font-medium tabular-nums",
+                severity === "critical" ? "text-red-400" :
+                severity === "alert"    ? "text-amber-400" :
+                severity === "notable"  ? "text-foreground/80" :
+                "text-foreground/50",
+              )}
+            >
+              {usdStr}
+            </span>
+          )}
+
+          <span className="shrink-0 font-mono text-[10px] tabular-nums text-foreground/30">
             {timeAgo(alert.createdAt)}
           </span>
         </div>
 
-        <p className="text-[14px] font-medium leading-snug tracking-[-0.01em] text-foreground/92">
-          <Icon className="mr-1.5 inline-block h-4 w-4 -translate-y-0.5 text-foreground/40" />
-          {alert.sentence}
-        </p>
+        {/* Row 2: action · source · wallet · (active: quick metrics) · links */}
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 rounded-[3px] border border-[var(--line)] bg-[var(--panel-2)] px-1.5 py-px font-mono text-[8px] uppercase tracking-wider text-foreground/40">
+            {event.action}
+          </span>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--line)]/80 pt-2 text-[10px] text-foreground/45">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="truncate font-semibold text-foreground/85">{symbol}</span>
-            {name ? (
-              <span className="max-w-[140px] truncate text-foreground/40">{name}</span>
-            ) : null}
-            <span className="inline-flex items-center gap-1 font-mono">
-              <Wallet className="h-3 w-3 shrink-0 opacity-50" />
-              {formatWallet(alert.event.wallet)}
+          {src && (
+            <span className="text-[10px] uppercase tracking-wider text-foreground/25">
+              {src}
             </span>
-            <span className="uppercase tracking-wider text-foreground/35">
-              {alert.event.source}
+          )}
+
+          <span className="font-mono text-[10px] text-foreground/30">
+            {formatWallet(event.wallet)}
+          </span>
+
+          {name && !active && (
+            <span className="max-w-[120px] truncate text-[10px] text-foreground/30">
+              {name}
             </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
+          )}
+
+          {/* Inline birdeye metrics when active */}
+          {active && birdeye && (
+            <div className="ml-1 flex items-center gap-2 text-[10px]">
+              {typeof birdeye.safetyScore === "number" && (
+                <span
+                  className={cn(
+                    "rounded-[4px] border px-1.5 py-px font-mono tabular-nums",
+                    birdeye.safetyScore >= 80
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                      : birdeye.safetyScore >= 60
+                      ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                      : "border-red-500/30 bg-red-500/10 text-red-400",
+                  )}
+                >
+                  Safety {birdeye.safetyScore}
+                </span>
+              )}
+              {typeof birdeye.liquidityUsd === "number" && (
+                <span className="text-foreground/45">
+                  Liq {formatUsd(birdeye.liquidityUsd)}
+                </span>
+              )}
+              {typeof birdeye.price24hChangePercent === "number" && (
+                <span
+                  className={cn(
+                    "font-mono tabular-nums",
+                    birdeye.price24hChangePercent >= 0
+                      ? "text-[var(--positive)]"
+                      : "text-[var(--negative)]",
+                  )}
+                >
+                  {birdeye.price24hChangePercent >= 0 ? "+" : ""}
+                  {birdeye.price24hChangePercent.toFixed(0)}%
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Quick-link buttons — visible on hover */}
+          <div
+            className="ml-auto flex shrink-0 items-center gap-1"
+            onClick={(e) => e.stopPropagation()}
+          >
             <a
-              href={pumpFunCoinUrl(mint)}
+              href={explorerBase}
               target="_blank"
               rel="noreferrer noopener"
-              title="Open on pump.fun"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--line)] text-foreground/55 transition hover:border-[var(--line-strong)] hover:text-foreground"
-              onClick={(event) => event.stopPropagation()}
+              title={event.source === "birdeye" ? "Open on Birdeye" : "Open on pump.fun"}
+              className="inline-flex h-6 w-6 items-center justify-center rounded-[4px] border border-[var(--line)] text-foreground/30 opacity-0 transition group-hover:opacity-100 hover:border-foreground/20 hover:text-foreground"
             >
-              <span className="sr-only">pump.fun</span>
-              <span className="text-[9px] font-bold leading-none">P</span>
+              <span className="text-[8px] font-bold leading-none">
+                {event.source === "birdeye" ? "B" : "P"}
+              </span>
             </a>
             <a
               href={dexScreenerSolanaPairUrl(mint)}
               target="_blank"
               rel="noreferrer noopener"
               title="DexScreener"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--line)] text-foreground/55 transition hover:border-[var(--line-strong)] hover:text-foreground"
-              onClick={(event) => event.stopPropagation()}
+              className="inline-flex h-6 w-6 items-center justify-center rounded-[4px] border border-[var(--line)] text-foreground/30 opacity-0 transition group-hover:opacity-100 hover:border-foreground/20 hover:text-foreground"
             >
-              <span className="sr-only">DexScreener</span>
-              <ExternalLink className="h-3.5 w-3.5" />
+              <ExternalLink className="h-3 w-3" />
             </a>
           </div>
         </div>
