@@ -557,6 +557,20 @@ export default function LyraWatchPage() {
         </div>
 
         <div className="flex items-center gap-5 text-[10px]" style={{ color: C.inkSoft }}>
+          <a
+            href="/a/lyra/circle"
+            className="text-[9px] font-semibold tracking-[0.18em] transition-opacity hover:opacity-70"
+            style={{ color: C.teal }}
+          >
+            CIRCLE
+          </a>
+          <a
+            href="/a/lyra/compute"
+            className="text-[9px] font-semibold tracking-[0.18em] transition-opacity hover:opacity-70"
+            style={{ color: C.violet }}
+          >
+            COMPUTE
+          </a>
           {agent?.testnet && (
             <span
               className="rounded-sm px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.2em]"

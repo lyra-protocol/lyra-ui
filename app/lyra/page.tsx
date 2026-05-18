@@ -133,6 +133,13 @@ export default function LyraProfilePage() {
             AGENT · CFO OF SELF
           </span>
           <Link
+            href="/a/lyra/circle"
+            className="text-[10px] font-semibold tracking-[0.2em]"
+            style={{ color: C.teal }}
+          >
+            CIRCLE →
+          </Link>
+          <Link
             href="/a/lyra"
             className="text-[10px] font-semibold tracking-[0.2em]"
             style={{
