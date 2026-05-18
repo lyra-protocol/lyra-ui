@@ -78,6 +78,49 @@ type PaymentIntent = {
   instructions: string;
 };
 
+const PAYMENT_ID_KEY = "lyra-circle-active-payment-id";
+
+function loadStoredPaymentId(): string | null {
+  try {
+    return sessionStorage.getItem(PAYMENT_ID_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storePaymentId(id: string) {
+  try {
+    sessionStorage.setItem(PAYMENT_ID_KEY, id);
+  } catch { /* noop */ }
+}
+
+function latestConfirmedPaymentId(entries: PaymentLogEntry[]): string | null {
+  const confirmed = entries.filter((p) => p.status === "confirmed");
+  if (confirmed.length === 0) return null;
+  confirmed.sort(
+    (a, b) => new Date(b.confirmedAt ?? b.createdAt).getTime() -
+      new Date(a.confirmedAt ?? a.createdAt).getTime(),
+  );
+  return confirmed[0]!.paymentId;
+}
+
+function gateHintFromBody(text: string, status: number): string | null {
+  if (status !== 402) return null;
+  try {
+    const body = JSON.parse(text) as { reason?: string; paymentId?: string };
+    if (body.reason === "missing_payment_id") {
+      return "No payment ID was sent — run steps 2 → 3 first (or use “Run full demo”).";
+    }
+    if (body.reason === "payment_pending") {
+      return `Payment ${body.paymentId?.slice(0, 8)}… is still pending — run step 3 (Confirm demo).`;
+    }
+    if (body.reason === "payment_not_found") {
+      return "Payment ID unknown on this agent instance — create a new intent (steps 2 → 3).";
+    }
+  } catch { /* not json */ }
+  return null;
+}
+
 function fmtUsdc(n: number): string {
   return `$${n.toFixed(2)}`;
 }
@@ -132,7 +175,18 @@ export default function CircleTreasuryPage() {
     } catch {
       setShowArcModal(true);
     }
+    const stored = loadStoredPaymentId();
+    if (stored) setActivePaymentId(stored);
   }, []);
+
+  function pickPaymentId(logEntries: PaymentLogEntry[] = payments): string | null {
+    return activePaymentId ?? loadStoredPaymentId() ?? latestConfirmedPaymentId(logEntries);
+  }
+
+  function setPaymentId(id: string) {
+    setActivePaymentId(id);
+    storePaymentId(id);
+  }
 
   const refresh = useCallback(async () => {
     const [st, bal, sum, log, tx] = await Promise.all([
@@ -145,8 +199,15 @@ export default function CircleTreasuryPage() {
     if (st) setStatus(st as CircleStatus);
     if (bal) setBalance(bal as WalletBalance);
     if (sum) setSummary(sum as PaymentSummary);
-    if (log?.payments) setPayments(log.payments as PaymentLogEntry[]);
+    const logEntries = (log?.payments ?? []) as PaymentLogEntry[];
+    if (logEntries.length) setPayments(logEntries);
     if (tx?.transactions) setTransactions(tx.transactions as ChainTx[]);
+    setActivePaymentId((prev) => {
+      if (prev) return prev;
+      const stored = loadStoredPaymentId();
+      if (stored) return stored;
+      return latestConfirmedPaymentId(logEntries);
+    });
     setLastUpdated(Date.now());
   }, []);
 
@@ -176,8 +237,8 @@ export default function CircleTreasuryPage() {
         setDemoMsg(data.error ?? "Failed to create intent");
         return;
       }
-      setActivePaymentId(data.intent.paymentId);
-      setDemoMsg(`Intent created — payment id copied to active slot`);
+      setPaymentId(data.intent.paymentId);
+      setDemoMsg(`Intent created — payment id saved for steps 3 & 4`);
       await refresh();
     } catch {
       setDemoMsg("Agent unreachable");
@@ -187,15 +248,17 @@ export default function CircleTreasuryPage() {
   }
 
   async function runDemoConfirmSandbox() {
-    if (!activePaymentId) {
-      setDemoMsg("Create an intent first");
+    const paymentId = pickPaymentId();
+    if (!paymentId) {
+      setDemoMsg("Create an intent first (step 2)");
       return;
     }
+    setPaymentId(paymentId);
     setDemoBusy(true);
     setDemoMsg(null);
     setGatePreview(null);
     try {
-      const res = await fetch(`/api/circle/payments/${activePaymentId}/confirm-sandbox`, {
+      const res = await fetch(`/api/circle/payments/${paymentId}/confirm-sandbox`, {
         method: "POST",
       });
       const data = await res.json() as { ok?: boolean; error?: string };
@@ -203,7 +266,7 @@ export default function CircleTreasuryPage() {
         setDemoMsg(data.error ?? "Confirm failed");
         return;
       }
-      const verify = await fetch(`/api/circle/payments/${activePaymentId}/verify`, {
+      const verify = await fetch(`/api/circle/payments/${paymentId}/verify`, {
         method: "POST",
       });
       const v = await verify.json() as { ok?: boolean; status?: string };
@@ -223,8 +286,9 @@ export default function CircleTreasuryPage() {
   async function runDemo402() {
     setDemoBusy(true);
     setGatePreview(null);
+    setDemoMsg("Step 1: unpaid call (402 expected)");
     try {
-      const res = await fetch("/api/circle/signals/trending-breakout");
+      const res = await fetch("/api/circle/signals/trending-breakout", { cache: "no-store" });
       const text = await res.text();
       setGatePreview(`HTTP ${res.status}\n${text.slice(0, 600)}`);
     } catch (e) {
@@ -234,23 +298,78 @@ export default function CircleTreasuryPage() {
     }
   }
 
+  async function runFullDemo() {
+    setDemoBusy(true);
+    setDemoMsg(null);
+    setGatePreview(null);
+    try {
+      const intentRes = await fetch("/api/circle/payments/intent", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ agentId: "lyra-ui-demo", signalType: "trending_breakout" }),
+      });
+      const intentData = await intentRes.json() as {
+        ok?: boolean;
+        intent?: PaymentIntent;
+        error?: string;
+      };
+      if (!intentData.ok || !intentData.intent) {
+        setDemoMsg(intentData.error ?? "Intent failed");
+        return;
+      }
+      const paymentId = intentData.intent.paymentId;
+      setPaymentId(paymentId);
+
+      const confirmRes = await fetch(`/api/circle/payments/${paymentId}/confirm-sandbox`, {
+        method: "POST",
+      });
+      const confirmData = await confirmRes.json() as { ok?: boolean; error?: string };
+      if (!confirmData.ok) {
+        setDemoMsg(confirmData.error ?? "Sandbox confirm failed — set CIRCLE_ENVIRONMENT=sandbox on agent");
+        return;
+      }
+
+      const signalRes = await fetchPaidSignal(paymentId);
+      const text = await signalRes.text();
+      setGatePreview(`HTTP ${signalRes.status}\n${text.slice(0, 800)}`);
+      const hint = gateHintFromBody(text, signalRes.status);
+      setDemoMsg(
+        signalRes.ok
+          ? "Full demo OK (intent → confirm → signal)"
+          : (hint ?? "Signal still blocked after confirm"),
+      );
+      await refresh();
+    } catch {
+      setDemoMsg("Agent unreachable");
+    } finally {
+      setDemoBusy(false);
+    }
+  }
+
+  async function fetchPaidSignal(paymentId: string) {
+    const q = encodeURIComponent(paymentId);
+    return fetch(`/api/circle/signals/trending-breakout?paymentId=${q}`, {
+      headers: { "X-Payment-Id": paymentId },
+      cache: "no-store",
+    });
+  }
+
   async function runDemoPaidSignal() {
-    if (!activePaymentId) {
-      setDemoMsg("Create + confirm a payment first");
+    const paymentId = pickPaymentId();
+    if (!paymentId) {
+      setDemoMsg("Run steps 2 → 3 first, or use “Run full demo”");
       return;
     }
+    setPaymentId(paymentId);
     setDemoBusy(true);
     setGatePreview(null);
     try {
-      const q = encodeURIComponent(activePaymentId);
-      const res = await fetch(`/api/circle/signals/trending-breakout?paymentId=${q}`, {
-        headers: { "X-Payment-Id": activePaymentId },
-        cache: "no-store",
-      });
+      const res = await fetchPaidSignal(paymentId);
       const text = await res.text();
       setGatePreview(`HTTP ${res.status}\n${text.slice(0, 800)}`);
+      const hint = gateHintFromBody(text, res.status);
       if (res.ok) setDemoMsg("Signal gate passed");
-      else setDemoMsg("Still blocked — run step 3 again or create a new intent");
+      else setDemoMsg(hint ?? "Still blocked — run step 3 again or create a new intent");
       await refresh();
     } catch (e) {
       setGatePreview(String(e));
@@ -467,6 +586,7 @@ export default function CircleTreasuryPage() {
                   <DemoBtn onClick={runDemoCreateIntent} disabled={demoBusy} label="2 · Create intent" />
                   <DemoBtn onClick={runDemoConfirmSandbox} disabled={demoBusy} label="3 · Confirm (demo)" />
                   <DemoBtn onClick={runDemoPaidSignal} disabled={demoBusy} label="4 · Fetch signal" />
+                  <DemoBtn onClick={runFullDemo} disabled={demoBusy} label="▶ Run full demo" />
                 </div>
                 <button
                   type="button"
