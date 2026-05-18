@@ -1,22 +1,41 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CircleDollarSign,
+  Copy,
+  ExternalLink,
+  Info,
+  Layers,
+  Loader2,
+  Radio,
+  RefreshCw,
+  Shield,
+  Wallet,
+  Zap,
+} from "lucide-react";
 
 const C = {
-  bg:       "#050505",
-  panel:    "#0A0A09",
-  ink:      "#ECECE6",
-  inkSoft:  "#A8A69E",
-  inkDim:   "#5A5852",
+  bg: "#050505",
+  panel: "#0A0A09",
+  panelRaised: "#0F0F0D",
+  ink: "#ECECE6",
+  inkSoft: "#A8A69E",
+  inkDim: "#5A5852",
   inkFaint: "#2D2C28",
   hairline: "#1A1A18",
   hairBold: "#2A2926",
-  amber:    "#F4A340",
-  emerald:  "#5BC892",
-  rose:     "#E07570",
-  teal:     "#7AC9C0",
-  violet:   "#B59AE8",
-  gold:     "#E5C07B",
+  amber: "#F4A340",
+  emerald: "#5BC892",
+  rose: "#E07570",
+  teal: "#7AC9C0",
+  tealDim: "rgba(122,201,192,0.12)",
+  violet: "#B59AE8",
+  gold: "#E5C07B",
+  circleBlue: "#6B9FE8",
 };
 
 type CircleStatus = {
@@ -78,6 +97,9 @@ type PaymentIntent = {
   instructions: string;
 };
 
+type DemoStep = 0 | 1 | 2 | 3 | 4;
+type ActivityTab = "payments" | "chain";
+
 const PAYMENT_ID_KEY = "lyra-circle-active-payment-id";
 
 function loadStoredPaymentId(): string | null {
@@ -91,14 +113,17 @@ function loadStoredPaymentId(): string | null {
 function storePaymentId(id: string) {
   try {
     sessionStorage.setItem(PAYMENT_ID_KEY, id);
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
 }
 
 function latestConfirmedPaymentId(entries: PaymentLogEntry[]): string | null {
   const confirmed = entries.filter((p) => p.status === "confirmed");
   if (confirmed.length === 0) return null;
   confirmed.sort(
-    (a, b) => new Date(b.confirmedAt ?? b.createdAt).getTime() -
+    (a, b) =>
+      new Date(b.confirmedAt ?? b.createdAt).getTime() -
       new Date(a.confirmedAt ?? a.createdAt).getTime(),
   );
   return confirmed[0]!.paymentId;
@@ -109,15 +134,17 @@ function gateHintFromBody(text: string, status: number): string | null {
   try {
     const body = JSON.parse(text) as { reason?: string; paymentId?: string };
     if (body.reason === "missing_payment_id") {
-      return "No payment ID was sent — run steps 2 → 3 first (or use “Run full demo”).";
+      return "No payment ID sent — complete steps 2 and 3, or run the full demo.";
     }
     if (body.reason === "payment_pending") {
-      return `Payment ${body.paymentId?.slice(0, 8)}… is still pending — run step 3 (Confirm demo).`;
+      return `Payment ${body.paymentId?.slice(0, 8)}… is pending — run Confirm (step 3).`;
     }
     if (body.reason === "payment_not_found") {
-      return "Payment ID unknown on this agent instance — create a new intent (steps 2 → 3).";
+      return "Payment ID not found on this agent — create a fresh intent.";
     }
-  } catch { /* not json */ }
+  } catch {
+    /* not json */
+  }
   return null;
 }
 
@@ -166,7 +193,11 @@ export default function CircleTreasuryPage() {
   const [demoMsg, setDemoMsg] = useState<string | null>(null);
   const [activePaymentId, setActivePaymentId] = useState<string | null>(null);
   const [gatePreview, setGatePreview] = useState<string | null>(null);
+  const [gateStatus, setGateStatus] = useState<number | null>(null);
   const [showArcModal, setShowArcModal] = useState(false);
+  const [demoStep, setDemoStep] = useState<DemoStep>(0);
+  const [activityTab, setActivityTab] = useState<ActivityTab>("payments");
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     try {
@@ -189,6 +220,7 @@ export default function CircleTreasuryPage() {
   }
 
   const refresh = useCallback(async () => {
+    setRefreshing(true);
     const [st, bal, sum, log, tx] = await Promise.all([
       fetch("/api/circle/status").then((r) => r.json()).catch(() => null),
       fetch("/api/circle/wallet/balance").then((r) => r.json()).catch(() => null),
@@ -209,6 +241,7 @@ export default function CircleTreasuryPage() {
       return latestConfirmedPaymentId(logEntries);
     });
     setLastUpdated(Date.now());
+    setRefreshing(false);
   }, []);
 
   useEffect(() => {
@@ -217,31 +250,36 @@ export default function CircleTreasuryPage() {
     return () => clearInterval(t);
   }, [refresh]);
 
-  const usdcOnChain = balance?.balances?.find(
-    (b) => b.token === "USDC" || b.token.toUpperCase().includes("USDC"),
-  )?.amount ?? "0";
+  const usdcOnChain =
+    balance?.balances?.find(
+      (b) => b.token === "USDC" || b.token.toUpperCase().includes("USDC"),
+    )?.amount ?? "0";
 
   const pendingCount = payments.filter((p) => p.status === "pending").length;
+  const confirmedCount = payments.filter((p) => p.status === "confirmed").length;
 
   async function runDemoCreateIntent() {
     setDemoBusy(true);
     setDemoMsg(null);
+    setDemoStep(2);
     try {
       const res = await fetch("/api/circle/payments/intent", {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ agentId: "lyra-ui-demo", signalType: "trending_breakout" }),
+        body: JSON.stringify({ agentId: "lyra-ui-demo", signalType: "trending_breakout" }),
       });
-      const data = await res.json() as { ok?: boolean; intent?: PaymentIntent; error?: string };
+      const data = (await res.json()) as { ok?: boolean; intent?: PaymentIntent; error?: string };
       if (!data.ok || !data.intent) {
         setDemoMsg(data.error ?? "Failed to create intent");
+        setDemoStep(1);
         return;
       }
       setPaymentId(data.intent.paymentId);
-      setDemoMsg(`Intent created — payment id saved for steps 3 & 4`);
+      setDemoMsg("Intent created — proceed to confirm");
       await refresh();
     } catch {
       setDemoMsg("Agent unreachable");
+      setDemoStep(1);
     } finally {
       setDemoBusy(false);
     }
@@ -257,11 +295,13 @@ export default function CircleTreasuryPage() {
     setDemoBusy(true);
     setDemoMsg(null);
     setGatePreview(null);
+    setGateStatus(null);
+    setDemoStep(3);
     try {
       const res = await fetch(`/api/circle/payments/${paymentId}/confirm-sandbox`, {
         method: "POST",
       });
-      const data = await res.json() as { ok?: boolean; error?: string };
+      const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!data.ok) {
         setDemoMsg(data.error ?? "Confirm failed");
         return;
@@ -269,12 +309,11 @@ export default function CircleTreasuryPage() {
       const verify = await fetch(`/api/circle/payments/${paymentId}/verify`, {
         method: "POST",
       });
-      const v = await verify.json() as { ok?: boolean; status?: string };
+      const v = (await verify.json()) as { ok?: boolean; status?: string };
       setDemoMsg(
-        v.ok
-          ? "Demo payment confirmed — ready for step 4"
-          : "Confirmed locally; retry step 4 or create a new intent",
+        v.ok ? "Payment confirmed — fetch the signal" : "Confirm recorded — retry signal fetch",
       );
+      if (v.ok) setDemoStep(4);
       await refresh();
     } catch {
       setDemoMsg("Agent unreachable");
@@ -286,61 +325,16 @@ export default function CircleTreasuryPage() {
   async function runDemo402() {
     setDemoBusy(true);
     setGatePreview(null);
-    setDemoMsg("Step 1: unpaid call (402 expected)");
+    setGateStatus(null);
+    setDemoStep(1);
+    setDemoMsg("Unpaid request — HTTP 402 is expected");
     try {
       const res = await fetch("/api/circle/signals/trending-breakout", { cache: "no-store" });
       const text = await res.text();
-      setGatePreview(`HTTP ${res.status}\n${text.slice(0, 600)}`);
+      setGateStatus(res.status);
+      setGatePreview(text.slice(0, 1200));
     } catch (e) {
       setGatePreview(String(e));
-    } finally {
-      setDemoBusy(false);
-    }
-  }
-
-  async function runFullDemo() {
-    setDemoBusy(true);
-    setDemoMsg(null);
-    setGatePreview(null);
-    try {
-      const intentRes = await fetch("/api/circle/payments/intent", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ agentId: "lyra-ui-demo", signalType: "trending_breakout" }),
-      });
-      const intentData = await intentRes.json() as {
-        ok?: boolean;
-        intent?: PaymentIntent;
-        error?: string;
-      };
-      if (!intentData.ok || !intentData.intent) {
-        setDemoMsg(intentData.error ?? "Intent failed");
-        return;
-      }
-      const paymentId = intentData.intent.paymentId;
-      setPaymentId(paymentId);
-
-      const confirmRes = await fetch(`/api/circle/payments/${paymentId}/confirm-sandbox`, {
-        method: "POST",
-      });
-      const confirmData = await confirmRes.json() as { ok?: boolean; error?: string };
-      if (!confirmData.ok) {
-        setDemoMsg(confirmData.error ?? "Sandbox confirm failed — set CIRCLE_ENVIRONMENT=sandbox on agent");
-        return;
-      }
-
-      const signalRes = await fetchPaidSignal(paymentId);
-      const text = await signalRes.text();
-      setGatePreview(`HTTP ${signalRes.status}\n${text.slice(0, 800)}`);
-      const hint = gateHintFromBody(text, signalRes.status);
-      setDemoMsg(
-        signalRes.ok
-          ? "Full demo OK (intent → confirm → signal)"
-          : (hint ?? "Signal still blocked after confirm"),
-      );
-      await refresh();
-    } catch {
-      setDemoMsg("Agent unreachable");
     } finally {
       setDemoBusy(false);
     }
@@ -357,19 +351,25 @@ export default function CircleTreasuryPage() {
   async function runDemoPaidSignal() {
     const paymentId = pickPaymentId();
     if (!paymentId) {
-      setDemoMsg("Run steps 2 → 3 first, or use “Run full demo”");
+      setDemoMsg("Complete steps 2 → 3 first, or run the full demo");
       return;
     }
     setPaymentId(paymentId);
     setDemoBusy(true);
     setGatePreview(null);
+    setGateStatus(null);
     try {
       const res = await fetchPaidSignal(paymentId);
       const text = await res.text();
-      setGatePreview(`HTTP ${res.status}\n${text.slice(0, 800)}`);
+      setGateStatus(res.status);
+      setGatePreview(text.slice(0, 1200));
       const hint = gateHintFromBody(text, res.status);
-      if (res.ok) setDemoMsg("Signal gate passed");
-      else setDemoMsg(hint ?? "Still blocked — run step 3 again or create a new intent");
+      if (res.ok) {
+        setDemoMsg("Signal gate passed");
+        setDemoStep(4);
+      } else {
+        setDemoMsg(hint ?? "Blocked — confirm payment or create a new intent");
+      }
       await refresh();
     } catch (e) {
       setGatePreview(String(e));
@@ -378,9 +378,70 @@ export default function CircleTreasuryPage() {
     }
   }
 
+  async function runFullDemo() {
+    setDemoBusy(true);
+    setDemoMsg(null);
+    setGatePreview(null);
+    setGateStatus(null);
+    setDemoStep(1);
+    try {
+      const unpaid = await fetch("/api/circle/signals/trending-breakout", { cache: "no-store" });
+      const unpaidText = await unpaid.text();
+      setGateStatus(unpaid.status);
+      setGatePreview(unpaidText.slice(0, 600));
+
+      const intentRes = await fetch("/api/circle/payments/intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId: "lyra-ui-demo", signalType: "trending_breakout" }),
+      });
+      const intentData = (await intentRes.json()) as {
+        ok?: boolean;
+        intent?: PaymentIntent;
+        error?: string;
+      };
+      if (!intentData.ok || !intentData.intent) {
+        setDemoMsg(intentData.error ?? "Intent failed");
+        return;
+      }
+      const paymentId = intentData.intent.paymentId;
+      setPaymentId(paymentId);
+      setDemoStep(2);
+
+      const confirmRes = await fetch(`/api/circle/payments/${paymentId}/confirm-sandbox`, {
+        method: "POST",
+      });
+      const confirmData = (await confirmRes.json()) as { ok?: boolean; error?: string };
+      if (!confirmData.ok) {
+        setDemoMsg(
+          confirmData.error ?? "Sandbox confirm failed — set CIRCLE_ENVIRONMENT=sandbox on agent",
+        );
+        return;
+      }
+      setDemoStep(3);
+
+      const signalRes = await fetchPaidSignal(paymentId);
+      const text = await signalRes.text();
+      setGateStatus(signalRes.status);
+      setGatePreview(text.slice(0, 1200));
+      const hint = gateHintFromBody(text, signalRes.status);
+      setDemoMsg(
+        signalRes.ok
+          ? "Full demo complete — 402 → intent → confirm → 200"
+          : (hint ?? "Signal still blocked after confirm"),
+      );
+      if (signalRes.ok) setDemoStep(4);
+      await refresh();
+    } catch {
+      setDemoMsg("Agent unreachable");
+    } finally {
+      setDemoBusy(false);
+    }
+  }
+
   return (
     <div
-      className="flex min-h-screen flex-col"
+      className="relative flex min-h-screen flex-col"
       style={{
         background: C.bg,
         color: C.ink,
@@ -392,48 +453,85 @@ export default function CircleTreasuryPage() {
         aria-hidden
         className="pointer-events-none fixed inset-0"
         style={{
-          background:
-            `radial-gradient(60% 45% at 12% 8%, rgba(122,201,192,0.09) 0%, transparent 55%),` +
-            `radial-gradient(50% 40% at 88% 92%, rgba(229,192,123,0.06) 0%, transparent 50%)`,
+          background: `
+            radial-gradient(ellipse 80% 50% at 0% 0%, rgba(122,201,192,0.11) 0%, transparent 50%),
+            radial-gradient(ellipse 60% 40% at 100% 100%, rgba(107,159,232,0.08) 0%, transparent 45%),
+            radial-gradient(ellipse 40% 30% at 50% 50%, rgba(229,192,123,0.04) 0%, transparent 60%)
+          `,
         }}
       />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 opacity-[0.35]"
+        style={{
+          backgroundImage: `
+            linear-gradient(${C.hairline} 1px, transparent 1px),
+            linear-gradient(90deg, ${C.hairline} 1px, transparent 1px)
+          `,
+          backgroundSize: "64px 64px",
+          maskImage: "radial-gradient(ellipse 70% 60% at 50% 30%, black 20%, transparent 75%)",
+        }}
+      />
+
       <header
-        className="relative z-10 flex h-12 shrink-0 items-center justify-between px-8"
+        className="relative z-20 flex shrink-0 items-center justify-between gap-4 px-6 py-4 lg:px-10"
         style={{ borderBottom: `1px solid ${C.hairline}` }}
       >
-        <div className="flex items-center gap-5">
+        <div className="flex min-w-0 items-center gap-4">
           <a
             href="/a/lyra"
-            className="text-[10px] tracking-[0.22em] transition-opacity hover:opacity-60"
+            className="group flex items-center gap-2 text-[11px] tracking-[0.18em] transition-opacity hover:opacity-70"
             style={{ color: C.inkDim }}
           >
-            ← LYRA
+            <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+            LYRA
           </a>
-          <span className="text-[13px] font-semibold tracking-[0.28em]" style={{ color: C.ink }}>
-            CIRCLE
-          </span>
-          <span className="hidden text-[10px] tracking-[0.2em] sm:block" style={{ color: C.inkDim }}>
-            DEMO ONLY · ARC TESTNET
-          </span>
+          <span className="h-4 w-px" style={{ background: C.hairBold }} />
+          <div>
+            <h1 className="text-[15px] font-semibold tracking-[0.2em]" style={{ color: C.ink }}>
+              TREASURY
+            </h1>
+            <p className="mt-0.5 text-[10px] tracking-[0.14em]" style={{ color: C.inkDim }}>
+              Circle · USDC · Arc testnet
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <span
+            className="hidden rounded-full px-2.5 py-1 text-[9px] font-semibold tracking-[0.16em] sm:inline"
+            style={{
+              color: C.gold,
+              background: "rgba(229,192,123,0.08)",
+              border: `1px solid rgba(229,192,123,0.22)`,
+            }}
+          >
+            DEMO ONLY
+          </span>
           {status && (
-            <span
-              className="rounded-sm px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.18em]"
-              style={{
-                color: status.ok ? C.emerald : C.amber,
-                background: status.ok ? "rgba(91,200,146,0.08)" : "rgba(244,163,64,0.08)",
-                border: `1px solid ${status.ok ? "rgba(91,200,146,0.25)" : "rgba(244,163,64,0.25)"}`,
-              }}
-            >
-              {status.ok ? "WALLET LIVE" : "SETUP REQUIRED"}
-            </span>
+            <StatusChip
+              live={status.ok}
+              label={status.ok ? "Wallet live" : "Setup required"}
+            />
           )}
-          {lastUpdated && (
-            <span className="text-[10px] tabular-nums" style={{ color: C.inkFaint }}>
-              updated {new Date(lastUpdated).toLocaleTimeString("en-US", { hour12: false })}
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={() => refresh()}
+            disabled={refreshing}
+            className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-white/[0.04] disabled:opacity-40"
+            style={{ border: `1px solid ${C.hairBold}`, color: C.inkSoft }}
+            aria-label="Refresh"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowArcModal(true)}
+            className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-[10px] font-medium tracking-[0.12em] transition-colors hover:bg-white/[0.04]"
+            style={{ border: `1px solid ${C.hairBold}`, color: C.teal }}
+          >
+            <Info className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">About</span>
+          </button>
         </div>
       </header>
 
@@ -442,432 +540,636 @@ export default function CircleTreasuryPage() {
           onClose={() => {
             try {
               localStorage.setItem("lyra-arc-intro-seen", "1");
-            } catch { /* noop */ }
+            } catch {
+              /* noop */
+            }
             setShowArcModal(false);
           }}
         />
       )}
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-8 py-10">
+      <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 px-6 py-8 lg:px-10 lg:py-10">
         {!status && (
-          <div className="flex justify-center py-24">
+          <div className="flex flex-col items-center justify-center gap-4 py-32">
+            <Loader2 className="h-6 w-6 animate-spin" style={{ color: C.teal }} />
             <span className="text-[11px] tracking-[0.22em]" style={{ color: C.inkDim }}>
-              CONNECTING TO AGENT…
+              Connecting to agent…
             </span>
           </div>
         )}
 
         {status && !status.ok && (
           <div
-            className="mb-8 rounded-sm px-5 py-4 text-[12px] leading-relaxed"
+            className="mb-8 flex gap-3 rounded-xl px-5 py-4"
             style={{
               background: "rgba(244,163,64,0.06)",
-              border: `1px solid rgba(244,163,64,0.22)`,
-              color: C.amber,
+              border: `1px solid rgba(244,163,64,0.2)`,
             }}
           >
-            Circle wallet not fully configured on the agent. Set{" "}
-            <span className="font-mono">CIRCLE_WALLET_*</span> and{" "}
-            <span className="font-mono">CIRCLE_ENTITY_SECRET</span> on lyra-agent, then redeploy.
+            <Shield className="mt-0.5 h-5 w-5 shrink-0" style={{ color: C.amber }} />
+            <div className="text-[13px] leading-relaxed" style={{ color: C.amber }}>
+              <p className="font-medium">Treasury not configured</p>
+              <p className="mt-1 opacity-90">
+                Set <code className="font-mono text-[12px]">CIRCLE_WALLET_*</code> and{" "}
+                <code className="font-mono text-[12px]">CIRCLE_ENTITY_SECRET</code> on lyra-agent,
+                then redeploy.
+              </p>
+            </div>
           </div>
         )}
 
         {status && (
-          <>
-            <section className="mb-10">
-              <SectionLabel>TREASURY</SectionLabel>
-              <div className="mt-4 grid gap-3 lg:grid-cols-3">
-                <TreasuryCard
-                  label="WALLET ADDRESS"
-                  value={status.walletAddress ?? "—"}
-                  mono
-                  full={status.walletAddress ?? undefined}
-                  onCopy={async () => {
-                    if (status.walletAddress) {
-                      const ok = await copyText(status.walletAddress);
-                      setCopied(ok);
-                      setTimeout(() => setCopied(false), 2000);
-                    }
-                  }}
-                  copyLabel={copied ? "COPIED" : "COPY"}
-                  accent={C.teal}
-                />
-                <TreasuryCard
-                  label="ON-CHAIN USDC"
-                  value={usdcOnChain}
-                  sub={balance?.blockchain ?? "ARC-TESTNET"}
-                  accent={C.emerald}
-                  big
-                />
-                <TreasuryCard
-                  label="PER SIGNAL"
-                  value={fmtUsdc(status.signalPriceUsdc)}
-                  sub={`${status.environment} · ${status.paymentBypass ? "gate bypassed" : "402 gate active"}`}
-                  accent={C.gold}
-                />
-              </div>
-              <div className="mt-3 flex flex-wrap gap-4 text-[10px]" style={{ color: C.inkDim }}>
-                <Meta k="wallet id" v={status.walletId ? shortAddr(status.walletId) : "—"} />
-                <Meta k="pending intents" v={String(pendingCount)} />
-                <Meta
-                  k="faucet"
-                  v={
+          <div className="space-y-8">
+            {/* Hero treasury */}
+            <section
+              className="relative overflow-hidden rounded-2xl p-6 lg:p-8"
+              style={{
+                background: `linear-gradient(145deg, ${C.panelRaised} 0%, ${C.panel} 55%, ${C.bg} 100%)`,
+                border: `1px solid ${C.hairBold}`,
+                boxShadow: "0 1px 0 rgba(255,255,255,0.03) inset, 0 24px 64px rgba(0,0,0,0.35)",
+              }}
+            >
+              <div
+                aria-hidden
+                className="absolute -right-20 -top-20 h-64 w-64 rounded-full opacity-40 blur-3xl"
+                style={{ background: C.tealDim }}
+              />
+              <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
+                <div>
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                    <NetworkPill label={balance?.blockchain ?? "ARC-TESTNET"} />
+                    <NetworkPill label={status.environment} muted />
+                    {status.paymentBypass && (
+                      <NetworkPill label="Gate bypassed" warn />
+                    )}
+                  </div>
+                  <p className="text-[11px] font-medium tracking-[0.2em]" style={{ color: C.inkDim }}>
+                    ON-CHAIN BALANCE
+                  </p>
+                  <p
+                    className="mt-1 font-semibold tabular-nums tracking-tight"
+                    style={{ fontSize: "clamp(2.5rem, 6vw, 3.75rem)", color: C.emerald, lineHeight: 1.05 }}
+                  >
+                    {usdcOnChain}
+                    <span className="ml-2 text-[0.45em] font-medium tracking-[0.2em]" style={{ color: C.inkSoft }}>
+                      USDC
+                    </span>
+                  </p>
+                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                    <WalletChip
+                      address={status.walletAddress ?? "—"}
+                      copied={copied}
+                      onCopy={async () => {
+                        if (status.walletAddress) {
+                          const ok = await copyText(status.walletAddress);
+                          setCopied(ok);
+                          setTimeout(() => setCopied(false), 2000);
+                        }
+                      }}
+                    />
                     <a
                       href="https://faucet.circle.com/"
                       target="_blank"
                       rel="noreferrer"
-                      className="underline decoration-dotted underline-offset-2"
+                      className="inline-flex items-center gap-1.5 text-[11px] tracking-[0.1em] transition-opacity hover:opacity-70"
                       style={{ color: C.teal }}
                     >
-                      faucet.circle.com
+                      Testnet faucet
+                      <ExternalLink className="h-3 w-3" />
                     </a>
-                  }
-                />
-              </div>
-            </section>
-
-            <section className="mb-10">
-              <SectionLabel>REVENUE</SectionLabel>
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <StatCard
-                  label="USDC RECEIVED"
-                  value={summary ? fmtUsdc(summary.totalUsdcReceived) : "—"}
-                  color={C.emerald}
-                  big
-                />
-                <StatCard
-                  label="PAID SIGNALS"
-                  value={summary ? String(summary.signalCallsPaid) : "—"}
-                  color={C.ink}
-                />
-                <StatCard
-                  label="LOG ENTRIES"
-                  value={String(payments.length)}
-                  color={C.inkSoft}
-                />
-                <StatCard
-                  label="CHAIN TXS"
-                  value={String(transactions.length)}
-                  color={C.violet}
-                />
-              </div>
-              {summary && Object.keys(summary.bySignalType).length > 0 && (
-                <div className="mt-4 space-y-2">
-                  {Object.entries(summary.bySignalType).map(([type, row]) => (
-                    <div
-                      key={type}
-                      className="flex items-center justify-between rounded-sm px-4 py-3"
-                      style={{ background: C.panel, border: `1px solid ${C.hairline}` }}
-                    >
-                      <span className="text-[11px] tracking-[0.16em]" style={{ color: C.inkSoft }}>
-                        {type.replace(/_/g, " ").toUpperCase()}
-                      </span>
-                      <span className="text-[12px] tabular-nums font-semibold" style={{ color: C.teal }}>
-                        {row.count} × {fmtUsdc(row.usdc)}
-                      </span>
-                    </div>
-                  ))}
+                  </div>
                 </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2 lg:gap-4">
+                  <HeroStat
+                    icon={<CircleDollarSign className="h-4 w-4" />}
+                    label="Per signal"
+                    value={fmtUsdc(status.signalPriceUsdc)}
+                    accent={C.gold}
+                  />
+                  <HeroStat
+                    icon={<Zap className="h-4 w-4" />}
+                    label="Paid calls"
+                    value={summary ? String(summary.signalCallsPaid) : "—"}
+                    accent={C.teal}
+                  />
+                  <HeroStat
+                    icon={<Layers className="h-4 w-4" />}
+                    label="Received"
+                    value={summary ? fmtUsdc(summary.totalUsdcReceived) : "—"}
+                    accent={C.emerald}
+                  />
+                  <HeroStat
+                    icon={<Radio className="h-4 w-4" />}
+                    label="Pending"
+                    value={String(pendingCount)}
+                    accent={pendingCount > 0 ? C.amber : C.inkDim}
+                  />
+                </div>
+              </div>
+              {lastUpdated && (
+                <p className="relative mt-6 text-[10px] tabular-nums" style={{ color: C.inkFaint }}>
+                  Last sync {new Date(lastUpdated).toLocaleTimeString("en-US", { hour12: false })}
+                </p>
               )}
             </section>
 
-            <section className="mb-10">
-              <SectionLabel>DEMO ONLY</SectionLabel>
-              <div
-                className="mt-4 rounded-sm p-5"
-                style={{ background: C.panel, border: `1px solid ${C.hairline}` }}
-              >
-                <p className="text-[12px] leading-relaxed" style={{ color: C.inkSoft }}>
-                  Testnet flow for USDC signal access: unpaid request → payment intent → demo confirm →
-                  gated signal. Not production billing.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <DemoBtn onClick={runDemo402} disabled={demoBusy} label="1 · Unpaid (expect 402)" />
-                  <DemoBtn onClick={runDemoCreateIntent} disabled={demoBusy} label="2 · Create intent" />
-                  <DemoBtn onClick={runDemoConfirmSandbox} disabled={demoBusy} label="3 · Confirm (demo)" />
-                  <DemoBtn onClick={runDemoPaidSignal} disabled={demoBusy} label="4 · Fetch signal" />
-                  <DemoBtn onClick={runFullDemo} disabled={demoBusy} label="▶ Run full demo" />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowArcModal(true)}
-                  className="mt-3 text-[10px] tracking-[0.14em] transition-opacity hover:opacity-70"
-                  style={{ color: C.teal }}
+            <div className="grid gap-8 xl:grid-cols-5">
+              {/* Demo column */}
+              <section className="xl:col-span-2">
+                <SectionHead
+                  title="Payment gate demo"
+                  subtitle="HTTP 402 until USDC intent is confirmed — testnet only"
+                />
+                <div
+                  className="mt-5 rounded-2xl p-5 lg:p-6"
+                  style={{
+                    background: C.panel,
+                    border: `1px solid ${C.hairBold}`,
+                  }}
                 >
-                  About Arc & Lyra treasury →
-                </button>
-                {activePaymentId && (
-                  <p className="mt-3 font-mono text-[10px] break-all" style={{ color: C.inkDim }}>
-                    active payment: {activePaymentId}
-                  </p>
-                )}
-                {demoMsg && (
-                  <p className="mt-2 text-[11px]" style={{ color: C.teal }}>
-                    {demoMsg}
-                  </p>
-                )}
-                {gatePreview && (
-                  <pre
-                    className="mt-4 max-h-48 overflow-auto rounded-sm p-3 text-[10px] leading-relaxed"
+                  <DemoStepper current={demoStep} busy={demoBusy} />
+                  <div className="mt-6 flex flex-col gap-2">
+                    <DemoAction
+                      step={1}
+                      title="Probe unpaid access"
+                      desc="Expect HTTP 402 with payment_required"
+                      onClick={runDemo402}
+                      disabled={demoBusy}
+                      active={demoStep === 1}
+                    />
+                    <DemoAction
+                      step={2}
+                      title="Create payment intent"
+                      desc="Allocates a payment ID for this signal"
+                      onClick={runDemoCreateIntent}
+                      disabled={demoBusy}
+                      active={demoStep === 2}
+                    />
+                    <DemoAction
+                      step={3}
+                      title="Confirm (sandbox)"
+                      desc="Marks intent paid without on-chain transfer"
+                      onClick={runDemoConfirmSandbox}
+                      disabled={demoBusy}
+                      active={demoStep === 3}
+                    />
+                    <DemoAction
+                      step={4}
+                      title="Fetch gated signal"
+                      desc="trending_breakout with X-Payment-Id"
+                      onClick={runDemoPaidSignal}
+                      disabled={demoBusy}
+                      active={demoStep === 4}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={runFullDemo}
+                    disabled={demoBusy}
+                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[11px] font-semibold tracking-[0.14em] transition-all hover:brightness-110 disabled:opacity-45"
                     style={{
-                      background: C.bg,
-                      border: `1px solid ${C.hairBold}`,
-                      color: C.inkSoft,
+                      color: C.bg,
+                      background: `linear-gradient(135deg, ${C.teal} 0%, #5aab9f 100%)`,
+                      boxShadow: "0 4px 24px rgba(122,201,192,0.25)",
                     }}
                   >
-                    {gatePreview}
-                  </pre>
-                )}
-              </div>
-            </section>
+                    {demoBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Zap className="h-4 w-4" />
+                    )}
+                    Run full demo
+                  </button>
+                  {activePaymentId && (
+                    <div
+                      className="mt-4 rounded-lg px-3 py-2.5 font-mono text-[10px] leading-relaxed break-all"
+                      style={{ background: C.bg, border: `1px solid ${C.hairline}`, color: C.inkDim }}
+                    >
+                      <span style={{ color: C.inkFaint }}>active payment · </span>
+                      {activePaymentId}
+                    </div>
+                  )}
+                  {demoMsg && (
+                    <p
+                      className="mt-3 text-[12px] leading-relaxed"
+                      style={{ color: demoMsg.includes("OK") || demoMsg.includes("passed") ? C.emerald : C.teal }}
+                    >
+                      {demoMsg}
+                    </p>
+                  )}
+                  {(gatePreview || gateStatus !== null) && (
+                    <ApiTerminal status={gateStatus} body={gatePreview} />
+                  )}
+                </div>
+              </section>
 
-            <section className="mb-10">
-              <SectionLabel>PAYMENT LOG</SectionLabel>
-              <div
-                className="mt-4 overflow-hidden rounded-sm"
-                style={{ border: `1px solid ${C.hairline}` }}
-              >
-                {payments.length === 0 ? (
-                  <EmptyRow message="No signal payments logged yet" />
-                ) : (
-                  <table className="w-full text-left text-[11px]">
-                    <thead>
-                      <tr style={{ background: C.panel, color: C.inkFaint }}>
-                        <Th>TIME</Th>
-                        <Th>AGENT</Th>
-                        <Th>SIGNAL</Th>
-                        <Th>AMOUNT</Th>
-                        <Th>STATUS</Th>
-                        <Th>PAYMENT ID</Th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {payments.map((p) => (
-                        <tr
-                          key={p.id}
-                          style={{ borderTop: `1px solid ${C.hairline}` }}
-                        >
-                          <Td>{fmtTime(p.createdAt)}</Td>
-                          <Td dim>{p.agentId.slice(0, 12)}</Td>
-                          <Td>{p.signalType}</Td>
-                          <Td accent>{fmtUsdc(p.usdcAmount)}</Td>
-                          <Td>
-                            <StatusPill status={p.status} />
-                          </Td>
-                          <Td mono dim>{shortAddr(p.paymentId)}</Td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </section>
-
-            <section className="mb-10">
-              <SectionLabel>ON-CHAIN TRANSACTIONS</SectionLabel>
-              <div
-                className="mt-4 overflow-hidden rounded-sm"
-                style={{ border: `1px solid ${C.hairline}` }}
-              >
-                {transactions.length === 0 ? (
-                  <EmptyRow message="No recent Circle wallet transactions" />
-                ) : (
-                  <table className="w-full text-left text-[11px]">
-                    <thead>
-                      <tr style={{ background: C.panel, color: C.inkFaint }}>
-                        <Th>TIME</Th>
-                        <Th>TYPE</Th>
-                        <Th>STATE</Th>
-                        <Th>AMOUNT</Th>
-                        <Th>TX</Th>
-                      </tr>
-                    </thead>
-                    <tbody>
+              {/* Activity column */}
+              <section className="xl:col-span-3">
+                <div className="flex items-end justify-between gap-4">
+                  <SectionHead title="Activity" subtitle="Payments and on-chain wallet history" />
+                  <TabSwitch tab={activityTab} onChange={setActivityTab} />
+                </div>
+                <div
+                  className="mt-5 overflow-hidden rounded-2xl"
+                  style={{ border: `1px solid ${C.hairBold}`, background: C.panel }}
+                >
+                  {activityTab === "payments" ? (
+                    payments.length === 0 ? (
+                      <EmptyState
+                        icon={<CircleDollarSign className="h-8 w-8" />}
+                        title="No payments yet"
+                        hint="Run the demo to create your first signal payment intent"
+                      />
+                    ) : (
+                      <div className="divide-y" style={{ borderColor: C.hairline }}>
+                        {payments.map((p) => (
+                          <PaymentRow key={p.id} entry={p} />
+                        ))}
+                      </div>
+                    )
+                  ) : transactions.length === 0 ? (
+                    <EmptyState
+                      icon={<Wallet className="h-8 w-8" />}
+                      title="No chain transactions"
+                      hint="Inbound USDC transfers will appear here"
+                    />
+                  ) : (
+                    <div className="divide-y" style={{ borderColor: C.hairline }}>
                       {transactions.map((tx) => (
-                        <tr key={tx.id} style={{ borderTop: `1px solid ${C.hairline}` }}>
-                          <Td>{tx.createDate ? fmtTime(tx.createDate) : "—"}</Td>
-                          <Td dim>{tx.type}</Td>
-                          <Td>
-                            <TxState state={tx.state} />
-                          </Td>
-                          <Td accent>{tx.amount ? `${tx.amount} ${tx.token ?? ""}` : "—"}</Td>
-                          <Td mono dim>{tx.txHash ? shortAddr(tx.txHash) : "—"}</Td>
-                        </tr>
+                        <TxRow key={tx.id} tx={tx} />
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  )}
+                </div>
+                {summary && Object.keys(summary.bySignalType).length > 0 && (
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {Object.entries(summary.bySignalType).map(([type, row]) => (
+                      <div
+                        key={type}
+                        className="flex items-center justify-between rounded-xl px-4 py-3"
+                        style={{ background: C.panel, border: `1px solid ${C.hairline}` }}
+                      >
+                        <span className="text-[11px] tracking-[0.12em]" style={{ color: C.inkSoft }}>
+                          {type.replace(/_/g, " ")}
+                        </span>
+                        <span className="text-[13px] font-semibold tabular-nums" style={{ color: C.teal }}>
+                          {row.count} × {fmtUsdc(row.usdc)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </div>
-            </section>
-          </>
+                <p className="mt-3 text-[10px]" style={{ color: C.inkFaint }}>
+                  {confirmedCount} confirmed · {payments.length} log entries · {transactions.length}{" "}
+                  chain txs
+                </p>
+              </section>
+            </div>
+          </div>
         )}
       </main>
     </div>
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+/* ─── Subcomponents ─────────────────────────────────────────────────────── */
+
+function SectionHead({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-[10px] font-semibold tracking-[0.28em]" style={{ color: C.inkSoft }}>
-        {children}
-      </span>
-      <span className="h-px flex-1" style={{ background: C.hairline }} />
+    <div>
+      <h2 className="text-[13px] font-semibold tracking-[0.16em]" style={{ color: C.ink }}>
+        {title.toUpperCase()}
+      </h2>
+      <p className="mt-1 text-[12px] leading-relaxed" style={{ color: C.inkDim }}>
+        {subtitle}
+      </p>
     </div>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  color,
-  big,
-  sub,
-}: {
-  label: string;
-  value: string;
-  color: string;
-  big?: boolean;
-  sub?: string;
-}) {
+function StatusChip({ live, label }: { live: boolean; label: string }) {
   return (
-    <div className="px-5 py-4" style={{ background: C.panel, border: `1px solid ${C.hairline}` }}>
-      <div className="text-[9px] tracking-[0.24em]" style={{ color: C.inkFaint }}>
-        {label}
-      </div>
-      <div
-        className={`mt-2 font-semibold tabular-nums tracking-tight ${big ? "text-[26px]" : "text-[20px]"}`}
-        style={{ color }}
-      >
-        {value}
-      </div>
-      {sub && (
-        <div className="mt-1 text-[10px]" style={{ color: C.inkDim }}>
-          {sub}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TreasuryCard({
-  label,
-  value,
-  sub,
-  accent,
-  mono,
-  full,
-  big,
-  onCopy,
-  copyLabel,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  accent: string;
-  mono?: boolean;
-  full?: string;
-  big?: boolean;
-  onCopy?: () => void;
-  copyLabel?: string;
-}) {
-  return (
-    <div
-      className="flex flex-col justify-between px-5 py-4"
-      style={{ background: C.panel, border: `1px solid ${C.hairline}` }}
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium tracking-[0.08em]"
+      style={{
+        color: live ? C.emerald : C.amber,
+        background: live ? "rgba(91,200,146,0.1)" : "rgba(244,163,64,0.1)",
+        border: `1px solid ${live ? "rgba(91,200,146,0.28)" : "rgba(244,163,64,0.28)"}`,
+      }}
     >
-      <div className="text-[9px] tracking-[0.24em]" style={{ color: C.inkFaint }}>
-        {label}
-      </div>
-      <div
-        className={`mt-2 font-semibold tracking-tight break-all ${big ? "text-[26px]" : "text-[14px]"} ${mono ? "font-mono" : ""}`}
-        style={{ color: accent }}
-        title={full}
-      >
-        {value}
-      </div>
-      {sub && (
-        <div className="mt-1 text-[10px]" style={{ color: C.inkDim }}>
-          {sub}
-        </div>
-      )}
-      {onCopy && (
-        <button
-          type="button"
-          onClick={onCopy}
-          className="mt-3 self-start text-[9px] font-semibold tracking-[0.2em] transition-opacity hover:opacity-70"
-          style={{ color: C.teal }}
-        >
-          {copyLabel ?? "COPY"}
-        </button>
-      )}
-    </div>
-  );
-}
-
-function Meta({ k, v }: { k: string; v: React.ReactNode }) {
-  return (
-    <span>
-      <span style={{ color: C.inkFaint }}>{k}: </span>
-      <span style={{ color: C.inkSoft }}>{v}</span>
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{
+          background: live ? C.emerald : C.amber,
+          boxShadow: live ? `0 0 8px ${C.emerald}` : undefined,
+        }}
+      />
+      {label}
     </span>
   );
 }
 
-function DemoBtn({
+function NetworkPill({
   label,
-  onClick,
-  disabled,
+  muted,
+  warn,
 }: {
   label: string;
-  onClick: () => void;
-  disabled: boolean;
+  muted?: boolean;
+  warn?: boolean;
+}) {
+  return (
+    <span
+      className="rounded-full px-2.5 py-0.5 text-[9px] font-semibold tracking-[0.14em] uppercase"
+      style={{
+        color: warn ? C.amber : muted ? C.inkDim : C.teal,
+        background: warn
+          ? "rgba(244,163,64,0.1)"
+          : muted
+            ? "rgba(255,255,255,0.03)"
+            : C.tealDim,
+        border: `1px solid ${warn ? "rgba(244,163,64,0.25)" : muted ? C.hairline : "rgba(122,201,192,0.25)"}`,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function WalletChip({
+  address,
+  copied,
+  onCopy,
+}: {
+  address: string;
+  copied: boolean;
+  onCopy: () => void;
 }) {
   return (
     <button
       type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="rounded-sm px-3 py-2 text-[10px] font-semibold tracking-[0.14em] transition-opacity disabled:opacity-40"
-      style={{
-        color: C.ink,
-        background: "rgba(122,201,192,0.1)",
-        border: `1px solid rgba(122,201,192,0.28)`,
-      }}
+      onClick={onCopy}
+      className="group inline-flex max-w-full items-center gap-2 rounded-lg px-3 py-2 font-mono text-[11px] transition-colors hover:bg-white/[0.04]"
+      style={{ border: `1px solid ${C.hairBold}`, color: C.inkSoft }}
     >
-      {label}
+      <Wallet className="h-3.5 w-3.5 shrink-0" style={{ color: C.teal }} />
+      <span className="truncate">{shortAddr(address)}</span>
+      {copied ? (
+        <Check className="h-3.5 w-3.5 shrink-0" style={{ color: C.emerald }} />
+      ) : (
+        <Copy className="h-3.5 w-3.5 shrink-0 opacity-50 group-hover:opacity-100" />
+      )}
     </button>
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
+function HeroStat({
+  icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  accent: string;
+}) {
   return (
-    <th className="px-4 py-2.5 text-[9px] font-semibold tracking-[0.18em]">
-      {children}
-    </th>
+    <div
+      className="rounded-xl px-4 py-3"
+      style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${C.hairline}` }}
+    >
+      <div className="flex items-center gap-1.5" style={{ color: C.inkFaint }}>
+        {icon}
+        <span className="text-[9px] font-medium tracking-[0.16em] uppercase">{label}</span>
+      </div>
+      <p className="mt-1.5 text-[18px] font-semibold tabular-nums tracking-tight" style={{ color: accent }}>
+        {value}
+      </p>
+    </div>
   );
 }
 
-function Td({
-  children,
-  mono,
-  dim,
-  accent,
+function DemoStepper({ current, busy }: { current: DemoStep; busy: boolean }) {
+  const steps = [
+    { n: 1, label: "402" },
+    { n: 2, label: "Intent" },
+    { n: 3, label: "Confirm" },
+    { n: 4, label: "Signal" },
+  ];
+  return (
+    <div className="flex items-center gap-0">
+      {steps.map((s, i) => {
+        const done = current > s.n;
+        const active = current === s.n;
+        return (
+          <div key={s.n} className="flex flex-1 items-center">
+            <div className="flex flex-col items-center gap-1.5">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-semibold transition-all duration-300"
+                style={{
+                  background: done ? C.tealDim : active ? "rgba(122,201,192,0.2)" : C.bg,
+                  border: `1px solid ${done || active ? C.teal : C.hairBold}`,
+                  color: done || active ? C.teal : C.inkFaint,
+                  boxShadow: active && !busy ? `0 0 16px rgba(122,201,192,0.35)` : undefined,
+                }}
+              >
+                {done ? <Check className="h-3.5 w-3.5" /> : s.n}
+              </div>
+              <span
+                className="text-[9px] font-medium tracking-[0.1em]"
+                style={{ color: active ? C.inkSoft : C.inkFaint }}
+              >
+                {s.label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <div
+                className="mx-1 mb-5 h-px flex-1 transition-colors duration-300"
+                style={{ background: done ? C.teal : C.hairBold, opacity: done ? 0.6 : 0.35 }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DemoAction({
+  step,
+  title,
+  desc,
+  onClick,
+  disabled,
+  active,
 }: {
-  children: React.ReactNode;
-  mono?: boolean;
-  dim?: boolean;
-  accent?: boolean;
+  step: number;
+  title: string;
+  desc: string;
+  onClick: () => void;
+  disabled: boolean;
+  active: boolean;
 }) {
   return (
-    <td
-      className={`px-4 py-2.5 tabular-nums ${mono ? "font-mono" : ""}`}
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="group flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-all hover:bg-white/[0.03] disabled:opacity-40"
       style={{
-        color: accent ? C.teal : dim ? C.inkDim : C.inkSoft,
+        border: `1px solid ${active ? "rgba(122,201,192,0.35)" : C.hairline}`,
+        background: active ? "rgba(122,201,192,0.06)" : "transparent",
       }}
     >
-      {children}
-    </td>
+      <span
+        className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold"
+        style={{
+          background: active ? C.tealDim : C.bg,
+          color: active ? C.teal : C.inkFaint,
+          border: `1px solid ${active ? "rgba(122,201,192,0.3)" : C.hairBold}`,
+        }}
+      >
+        {step}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[12px] font-medium" style={{ color: C.ink }}>
+          {title}
+        </p>
+        <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: C.inkDim }}>
+          {desc}
+        </p>
+      </div>
+      <ArrowRight
+        className="mt-1 h-4 w-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-60"
+        style={{ color: C.teal }}
+      />
+    </button>
+  );
+}
+
+function ApiTerminal({ status, body }: { status: number | null; body: string | null }) {
+  let formatted = body ?? "";
+  try {
+    formatted = JSON.stringify(JSON.parse(body ?? ""), null, 2);
+  } catch {
+    /* keep raw */
+  }
+  const ok = status !== null && status >= 200 && status < 300;
+  const blocked = status === 402;
+  return (
+    <div className="mt-4 overflow-hidden rounded-xl" style={{ border: `1px solid ${C.hairBold}` }}>
+      <div
+        className="flex items-center justify-between px-3 py-2"
+        style={{ background: C.bg, borderBottom: `1px solid ${C.hairline}` }}
+      >
+        <span className="text-[10px] tracking-[0.14em]" style={{ color: C.inkFaint }}>
+          API response
+        </span>
+        {status !== null && (
+          <span
+            className="rounded-md px-2 py-0.5 font-mono text-[10px] font-semibold"
+            style={{
+              color: ok ? C.emerald : blocked ? C.amber : C.rose,
+              background: ok
+                ? "rgba(91,200,146,0.12)"
+                : blocked
+                  ? "rgba(244,163,64,0.12)"
+                  : "rgba(224,117,112,0.12)",
+            }}
+          >
+            HTTP {status}
+          </span>
+        )}
+      </div>
+      <pre
+        className="max-h-52 overflow-auto p-3 font-mono text-[10px] leading-relaxed"
+        style={{ background: "#030303", color: C.inkSoft }}
+      >
+        {formatted}
+      </pre>
+    </div>
+  );
+}
+
+function TabSwitch({
+  tab,
+  onChange,
+}: {
+  tab: ActivityTab;
+  onChange: (t: ActivityTab) => void;
+}) {
+  return (
+    <div
+      className="flex rounded-lg p-0.5"
+      style={{ background: C.bg, border: `1px solid ${C.hairline}` }}
+    >
+      {(["payments", "chain"] as const).map((t) => (
+        <button
+          key={t}
+          type="button"
+          onClick={() => onChange(t)}
+          className="rounded-md px-3 py-1.5 text-[10px] font-medium tracking-[0.1em] capitalize transition-colors"
+          style={{
+            color: tab === t ? C.ink : C.inkDim,
+            background: tab === t ? C.panelRaised : "transparent",
+          }}
+        >
+          {t === "chain" ? "On-chain" : "Payments"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PaymentRow({ entry }: { entry: PaymentLogEntry }) {
+  const confirmed = entry.status === "confirmed";
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3.5 transition-colors hover:bg-white/[0.02] sm:flex-nowrap">
+      <div className="min-w-[120px] flex-1">
+        <p className="text-[12px] font-medium" style={{ color: C.ink }}>
+          {entry.signalType.replace(/_/g, " ")}
+        </p>
+        <p className="mt-0.5 text-[10px] tabular-nums" style={{ color: C.inkFaint }}>
+          {fmtTime(entry.createdAt)}
+        </p>
+      </div>
+      <span className="font-mono text-[11px]" style={{ color: C.inkDim }}>
+        {entry.agentId.slice(0, 14)}
+      </span>
+      <span className="text-[13px] font-semibold tabular-nums" style={{ color: C.teal }}>
+        {fmtUsdc(entry.usdcAmount)}
+      </span>
+      <StatusPill status={entry.status} />
+      <span className="w-full font-mono text-[10px] sm:w-auto sm:text-right" style={{ color: C.inkFaint }}>
+        {shortAddr(entry.paymentId)}
+      </span>
+    </div>
+  );
+}
+
+function TxRow({ tx }: { tx: ChainTx }) {
+  const ok = tx.state === "COMPLETE" || tx.state === "CONFIRMED";
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3.5 transition-colors hover:bg-white/[0.02]">
+      <div className="min-w-[100px] flex-1">
+        <p className="text-[12px] font-medium" style={{ color: C.inkSoft }}>
+          {tx.type}
+        </p>
+        <p className="mt-0.5 text-[10px]" style={{ color: C.inkFaint }}>
+          {tx.createDate ? fmtTime(tx.createDate) : "—"}
+        </p>
+      </div>
+      <span className="text-[11px] font-medium" style={{ color: ok ? C.emerald : C.inkDim }}>
+        {tx.state}
+      </span>
+      <span className="text-[12px] tabular-nums font-medium" style={{ color: C.teal }}>
+        {tx.amount ? `${tx.amount} ${tx.token ?? ""}` : "—"}
+      </span>
+      <span className="font-mono text-[10px]" style={{ color: C.inkFaint }}>
+        {tx.txHash ? shortAddr(tx.txHash) : "—"}
+      </span>
+    </div>
   );
 }
 
@@ -875,29 +1177,38 @@ function StatusPill({ status }: { status: "pending" | "confirmed" }) {
   const confirmed = status === "confirmed";
   return (
     <span
-      className="inline-block rounded-sm px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.14em]"
+      className="rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.1em] uppercase"
       style={{
         color: confirmed ? C.emerald : C.amber,
         background: confirmed ? "rgba(91,200,146,0.1)" : "rgba(244,163,64,0.1)",
         border: `1px solid ${confirmed ? "rgba(91,200,146,0.25)" : "rgba(244,163,64,0.25)"}`,
       }}
     >
-      {status.toUpperCase()}
+      {status}
     </span>
   );
 }
 
-function TxState({ state }: { state: string }) {
-  const ok = state === "COMPLETE" || state === "CONFIRMED";
+function EmptyState({
+  icon,
+  title,
+  hint,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  hint: string;
+}) {
   return (
-    <span style={{ color: ok ? C.emerald : C.inkDim }}>{state}</span>
-  );
-}
-
-function EmptyRow({ message }: { message: string }) {
-  return (
-    <div className="px-5 py-10 text-center text-[11px] tracking-[0.12em]" style={{ color: C.inkDim }}>
-      {message}
+    <div className="flex flex-col items-center px-6 py-16 text-center">
+      <div className="mb-4 opacity-30" style={{ color: C.teal }}>
+        {icon}
+      </div>
+      <p className="text-[13px] font-medium" style={{ color: C.inkSoft }}>
+        {title}
+      </p>
+      <p className="mt-2 max-w-xs text-[12px] leading-relaxed" style={{ color: C.inkDim }}>
+        {hint}
+      </p>
     </div>
   );
 }
@@ -905,48 +1216,178 @@ function EmptyRow({ message }: { message: string }) {
 function ArcIntroModal({ onClose }: { onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6"
-      style={{ background: "rgba(5,5,5,0.82)" }}
+      className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="arc-intro-title"
+      aria-labelledby="arc-modal-title"
     >
+      <button
+        type="button"
+        aria-label="Close"
+        className="absolute inset-0 backdrop-blur-md"
+        style={{ background: "rgba(3,3,3,0.75)" }}
+        onClick={onClose}
+      />
       <div
-        className="relative w-full max-w-md rounded-sm p-6"
+        className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl"
         style={{
           background: C.panel,
           border: `1px solid ${C.hairBold}`,
-          boxShadow: "0 24px 80px rgba(0,0,0,0.55)",
+          boxShadow: "0 32px 100px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04) inset",
         }}
       >
-        <h2
-          id="arc-intro-title"
-          className="text-[13px] font-semibold tracking-[0.22em]"
-          style={{ color: C.ink }}
-        >
-          LYRA × ARC
-        </h2>
-        <p className="mt-4 text-[12px] leading-relaxed" style={{ color: C.inkSoft }}>
-          Lyra holds a Circle developer-controlled treasury on{" "}
-          <span style={{ color: C.teal }}>Arc testnet</span> for USDC signal access. Agents pay per
-          call; the gate returns HTTP 402 until payment is verified.
-        </p>
-        <p className="mt-3 text-[12px] leading-relaxed" style={{ color: C.inkSoft }}>
-          This dashboard is a <span style={{ color: C.gold }}>demo only</span> — sandbox intents, not
-          mainnet billing. Production Arc mainnet is planned for the second half of the year.
-        </p>
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-6 w-full rounded-sm py-2.5 text-[10px] font-semibold tracking-[0.18em] transition-opacity hover:opacity-80"
+        <div
+          className="relative px-6 pt-8 pb-6 sm:px-8"
           style={{
-            color: C.bg,
-            background: C.teal,
+            background: `linear-gradient(180deg, rgba(122,201,192,0.14) 0%, transparent 70%)`,
           }}
         >
-          GOT IT
-        </button>
+          <div
+            aria-hidden
+            className="absolute right-6 top-6 h-24 w-24 rounded-full blur-2xl"
+            style={{ background: "rgba(107,159,232,0.2)" }}
+          />
+          <p className="text-[10px] font-semibold tracking-[0.24em]" style={{ color: C.teal }}>
+            LYRA TREASURY
+          </p>
+          <h2
+            id="arc-modal-title"
+            className="mt-2 text-[22px] font-semibold tracking-tight leading-snug"
+            style={{ color: C.ink }}
+          >
+            USDC signals on Arc
+          </h2>
+          <p className="mt-3 max-w-md text-[14px] leading-relaxed" style={{ color: C.inkSoft }}>
+            Lyra operates a Circle developer-controlled wallet on Arc testnet. External agents pay
+            per signal call in USDC before Lyra releases gated market intelligence.
+          </p>
+        </div>
+
+        <div className="space-y-4 px-6 pb-2 sm:px-8">
+          <ModalBlock
+            icon={<Shield className="h-4 w-4" />}
+            title="HTTP 402 payment gate"
+            body="Unpaid requests receive payment_required with amount, treasury address, and intent URL. After USDC is verified, the same endpoint returns signal payload."
+          />
+          <ModalBlock
+            icon={<Wallet className="h-4 w-4" />}
+            title="Treasury & intents"
+            body="Each signal type has a fixed USDC price. Agents POST an intent, receive a payment ID, then attach X-Payment-Id on the gated route."
+          />
+          <ModalBlock
+            icon={<Layers className="h-4 w-4" />}
+            title="What you see here"
+            body="This page is a demo only — sandbox confirm simulates payment without mainnet settlement. Not production billing."
+          />
+        </div>
+
+        <div
+          className="mx-6 mt-5 rounded-xl p-4 sm:mx-8"
+          style={{ background: C.bg, border: `1px solid ${C.hairline}` }}
+        >
+          <p className="text-[10px] font-semibold tracking-[0.18em]" style={{ color: C.inkFaint }}>
+            ROADMAP
+          </p>
+          <div className="mt-3 space-y-3">
+            <RoadmapRow
+              phase="Now"
+              label="Arc testnet + Circle sandbox"
+              active
+            />
+            <RoadmapRow
+              phase="H2 2026"
+              label="Arc mainnet production treasury"
+            />
+          </div>
+        </div>
+
+        <div
+          className="mt-6 flex flex-col-reverse gap-2 px-6 pb-6 sm:flex-row sm:justify-end sm:px-8 sm:pb-8"
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl px-5 py-3 text-[11px] font-medium tracking-[0.12em] transition-colors hover:bg-white/[0.04]"
+            style={{ color: C.inkDim, border: `1px solid ${C.hairline}` }}
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl px-5 py-3 text-[11px] font-semibold tracking-[0.12em] transition-all hover:brightness-110"
+            style={{
+              color: C.bg,
+              background: `linear-gradient(135deg, ${C.teal}, #5aab9f)`,
+            }}
+          >
+            Continue to treasury
+          </button>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function ModalBlock({
+  icon,
+  title,
+  body,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="flex gap-3">
+      <div
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+        style={{ background: C.tealDim, color: C.teal, border: `1px solid rgba(122,201,192,0.2)` }}
+      >
+        {icon}
+      </div>
+      <div>
+        <p className="text-[13px] font-medium" style={{ color: C.ink }}>
+          {title}
+        </p>
+        <p className="mt-1 text-[12px] leading-relaxed" style={{ color: C.inkDim }}>
+          {body}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function RoadmapRow({
+  phase,
+  label,
+  active,
+}: {
+  phase: string;
+  label: string;
+  active?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span
+        className="shrink-0 rounded-md px-2 py-0.5 text-[9px] font-bold tracking-[0.12em]"
+        style={{
+          color: active ? C.teal : C.inkFaint,
+          background: active ? C.tealDim : "rgba(255,255,255,0.03)",
+          border: `1px solid ${active ? "rgba(122,201,192,0.3)" : C.hairline}`,
+        }}
+      >
+        {phase}
+      </span>
+      <span className="text-[12px]" style={{ color: active ? C.inkSoft : C.inkDim }}>
+        {label}
+      </span>
+      {active && (
+        <span
+          className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ background: C.emerald, boxShadow: `0 0 8px ${C.emerald}` }}
+        />
+      )}
     </div>
   );
 }
