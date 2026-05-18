@@ -123,6 +123,16 @@ export default function CircleTreasuryPage() {
   const [demoMsg, setDemoMsg] = useState<string | null>(null);
   const [activePaymentId, setActivePaymentId] = useState<string | null>(null);
   const [gatePreview, setGatePreview] = useState<string | null>(null);
+  const [showArcModal, setShowArcModal] = useState(false);
+
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem("lyra-arc-intro-seen");
+      if (!seen) setShowArcModal(true);
+    } catch {
+      setShowArcModal(true);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     const [st, bal, sum, log, tx] = await Promise.all([
@@ -183,12 +193,25 @@ export default function CircleTreasuryPage() {
     }
     setDemoBusy(true);
     setDemoMsg(null);
+    setGatePreview(null);
     try {
       const res = await fetch(`/api/circle/payments/${activePaymentId}/confirm-sandbox`, {
         method: "POST",
       });
       const data = await res.json() as { ok?: boolean; error?: string };
-      setDemoMsg(data.ok ? "Sandbox payment confirmed" : (data.error ?? "Confirm failed"));
+      if (!data.ok) {
+        setDemoMsg(data.error ?? "Confirm failed");
+        return;
+      }
+      const verify = await fetch(`/api/circle/payments/${activePaymentId}/verify`, {
+        method: "POST",
+      });
+      const v = await verify.json() as { ok?: boolean; status?: string };
+      setDemoMsg(
+        v.ok
+          ? "Demo payment confirmed — ready for step 4"
+          : "Confirmed locally; retry step 4 or create a new intent",
+      );
       await refresh();
     } catch {
       setDemoMsg("Agent unreachable");
@@ -219,11 +242,15 @@ export default function CircleTreasuryPage() {
     setDemoBusy(true);
     setGatePreview(null);
     try {
-      const res = await fetch("/api/circle/signals/trending-breakout", {
+      const q = encodeURIComponent(activePaymentId);
+      const res = await fetch(`/api/circle/signals/trending-breakout?paymentId=${q}`, {
         headers: { "X-Payment-Id": activePaymentId },
+        cache: "no-store",
       });
       const text = await res.text();
       setGatePreview(`HTTP ${res.status}\n${text.slice(0, 800)}`);
+      if (res.ok) setDemoMsg("Signal gate passed");
+      else setDemoMsg("Still blocked — run step 3 again or create a new intent");
       await refresh();
     } catch (e) {
       setGatePreview(String(e));
@@ -267,7 +294,7 @@ export default function CircleTreasuryPage() {
             CIRCLE
           </span>
           <span className="hidden text-[10px] tracking-[0.2em] sm:block" style={{ color: C.inkDim }}>
-            USDC TREASURY · SIGNAL PAYMENTS
+            DEMO ONLY · ARC TESTNET
           </span>
         </div>
         <div className="flex items-center gap-4">
@@ -290,6 +317,17 @@ export default function CircleTreasuryPage() {
           )}
         </div>
       </header>
+
+      {showArcModal && (
+        <ArcIntroModal
+          onClose={() => {
+            try {
+              localStorage.setItem("lyra-arc-intro-seen", "1");
+            } catch { /* noop */ }
+            setShowArcModal(false);
+          }}
+        />
+      )}
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-8 py-10">
         {!status && (
@@ -415,21 +453,29 @@ export default function CircleTreasuryPage() {
             </section>
 
             <section className="mb-10">
-              <SectionLabel>GRANT DEMO</SectionLabel>
+              <SectionLabel>DEMO ONLY</SectionLabel>
               <div
                 className="mt-4 rounded-sm p-5"
                 style={{ background: C.panel, border: `1px solid ${C.hairline}` }}
               >
                 <p className="text-[12px] leading-relaxed" style={{ color: C.inkSoft }}>
-                  Walkthrough: create a payment intent → confirm in sandbox → call the gated trending-breakout
-                  signal. Step 1 without payment shows HTTP 402.
+                  Testnet flow for USDC signal access: unpaid request → payment intent → demo confirm →
+                  gated signal. Not production billing.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <DemoBtn onClick={runDemo402} disabled={demoBusy} label="1 · Test 402 (no payment)" />
+                  <DemoBtn onClick={runDemo402} disabled={demoBusy} label="1 · Unpaid (expect 402)" />
                   <DemoBtn onClick={runDemoCreateIntent} disabled={demoBusy} label="2 · Create intent" />
-                  <DemoBtn onClick={runDemoConfirmSandbox} disabled={demoBusy} label="3 · Confirm sandbox" />
-                  <DemoBtn onClick={runDemoPaidSignal} disabled={demoBusy} label="4 · Fetch signal (paid)" />
+                  <DemoBtn onClick={runDemoConfirmSandbox} disabled={demoBusy} label="3 · Confirm (demo)" />
+                  <DemoBtn onClick={runDemoPaidSignal} disabled={demoBusy} label="4 · Fetch signal" />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowArcModal(true)}
+                  className="mt-3 text-[10px] tracking-[0.14em] transition-opacity hover:opacity-70"
+                  style={{ color: C.teal }}
+                >
+                  About Arc & Lyra treasury →
+                </button>
                 {activePaymentId && (
                   <p className="mt-3 font-mono text-[10px] break-all" style={{ color: C.inkDim }}>
                     active payment: {activePaymentId}
@@ -732,6 +778,55 @@ function EmptyRow({ message }: { message: string }) {
   return (
     <div className="px-5 py-10 text-center text-[11px] tracking-[0.12em]" style={{ color: C.inkDim }}>
       {message}
+    </div>
+  );
+}
+
+function ArcIntroModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      style={{ background: "rgba(5,5,5,0.82)" }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="arc-intro-title"
+    >
+      <div
+        className="relative w-full max-w-md rounded-sm p-6"
+        style={{
+          background: C.panel,
+          border: `1px solid ${C.hairBold}`,
+          boxShadow: "0 24px 80px rgba(0,0,0,0.55)",
+        }}
+      >
+        <h2
+          id="arc-intro-title"
+          className="text-[13px] font-semibold tracking-[0.22em]"
+          style={{ color: C.ink }}
+        >
+          LYRA × ARC
+        </h2>
+        <p className="mt-4 text-[12px] leading-relaxed" style={{ color: C.inkSoft }}>
+          Lyra holds a Circle developer-controlled treasury on{" "}
+          <span style={{ color: C.teal }}>Arc testnet</span> for USDC signal access. Agents pay per
+          call; the gate returns HTTP 402 until payment is verified.
+        </p>
+        <p className="mt-3 text-[12px] leading-relaxed" style={{ color: C.inkSoft }}>
+          This dashboard is a <span style={{ color: C.gold }}>demo only</span> — sandbox intents, not
+          mainnet billing. Production Arc mainnet is planned for the second half of the year.
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-6 w-full rounded-sm py-2.5 text-[10px] font-semibold tracking-[0.18em] transition-opacity hover:opacity-80"
+          style={{
+            color: C.bg,
+            background: C.teal,
+          }}
+        >
+          GOT IT
+        </button>
+      </div>
     </div>
   );
 }
