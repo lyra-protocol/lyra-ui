@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toHyperliquidCoin } from "@/core/market/hyperliquid-browser";
+import { closeWebSocket } from "@/lib/close-websocket";
 import { MarketTicker } from "@/core/market/types";
 
 const HL_WS_MAINNET = "wss://api.hyperliquid.xyz/ws";
@@ -109,10 +110,8 @@ export function useLiveMarketTickers(
     return () => {
       stopped = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (websocket?.readyState === WebSocket.OPEN) {
-        websocket.send(JSON.stringify({ method: "unsubscribe", subscription: { type: "allMids" } }));
-      }
-      websocket?.close();
+      closeWebSocket(websocket);
+      websocket = null;
     };
   }, [subscriptionKey, sortedIds, testnet]);
 

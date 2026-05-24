@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toHyperliquidCoin } from "@/core/market/hyperliquid-browser";
+import { closeWebSocket } from "@/lib/close-websocket";
 import { MarketTrade } from "@/core/market/types";
 
 const HYPERLIQUID_WS_URL = "wss://api.hyperliquid.xyz/ws";
@@ -99,17 +100,8 @@ export function useMarketTrades(productId: string) {
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
       }
-
-      if (websocket?.readyState === WebSocket.OPEN) {
-        websocket.send(
-          JSON.stringify({
-            method: "unsubscribe",
-            subscription: { type: "trades", coin },
-          })
-        );
-      }
-
-      websocket?.close();
+      closeWebSocket(websocket);
+      websocket = null;
     };
   }, [coin, productId]);
 

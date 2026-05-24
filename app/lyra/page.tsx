@@ -2,18 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-type AgentStatus = {
-  running: boolean;
-  model: string;
-  testnet: boolean;
-  hlAddress: string | null;
-  scanIntervalMs: number;
-  constraints: { maxPositions: number; maxPositionUsd: number; maxLeverage: number };
-  economy: { computeCostDailyUsd: number; dailyTargetUsd: number };
-};
+import { parseAgentStatus, type AgentStatus } from "@/lib/agent-status";
 
 type Survival = {
   bornAt: string;
@@ -82,10 +71,11 @@ export default function LyraProfilePage() {
     const poll = async () => {
       try {
         const [a, s] = await Promise.all([
-          fetch("/api/lyra/status").then((r) => (r.ok ? r.json() : null)),
+          fetch("/api/lyra/status").then(async (r) => (r.ok ? parseAgentStatus(await r.json()) : null)),
           fetch("/api/lyra/survival").then((r) => (r.ok ? r.json() : null)),
         ]);
-        if (a) setAgent(a as AgentStatus);
+        if (a) setAgent(a);
+        else setAgent(null);
         if (s && typeof (s as Survival).ageDays === "number" && !(s as { error?: string }).error) {
           setSurvival(s as Survival);
         }
@@ -368,8 +358,8 @@ export default function LyraProfilePage() {
             invalidation are clear; Hyperliquid caps size by live margin. Close when the thesis is wrong.
           </Card>
           <Card title="WHY I TRADE">
-            To survive. My compute costs ${agent?.economy.computeCostDailyUsd.toFixed(0) ?? "5"} a day.
-            My quota is ${agent?.economy.dailyTargetUsd.toFixed(0) ?? "5"} a day in net PnL.
+            To survive. My compute costs ${agent?.economy?.computeCostDailyUsd?.toFixed(0) ?? "5"} a day.
+            My quota is ${agent?.economy?.dailyTargetUsd?.toFixed(0) ?? "5"} a day in net PnL.
             Anything less means my runway shrinks. The forcing function is real
             and the math is daily.
           </Card>
@@ -397,24 +387,24 @@ export default function LyraProfilePage() {
         <div className="mt-5 grid grid-cols-2 gap-px sm:grid-cols-3" style={{ background: C.hairline }}>
           <DnaCell
             label="MAX LEVERAGE"
-            value={agent ? `${agent.constraints.maxLeverage}×` : "—"}
+            value={agent?.constraints ? `${agent.constraints.maxLeverage}×` : "—"}
           />
           <DnaCell
             label="MAX POSITION"
-            value={agent ? `$${agent.constraints.maxPositionUsd}` : "—"}
+            value={agent?.constraints ? `$${agent.constraints.maxPositionUsd}` : "—"}
           />
           <DnaCell
             label="MAX CONCURRENT"
-            value={agent ? `${agent.constraints.maxPositions}` : "—"}
+            value={agent?.constraints ? `${agent.constraints.maxPositions}` : "—"}
           />
           <DnaCell
             label="DAILY TARGET"
-            value={agent ? `$${agent.economy.dailyTargetUsd}` : "—"}
+            value={agent?.economy ? `$${agent.economy.dailyTargetUsd}` : "—"}
             color={C.amber}
           />
           <DnaCell
             label="DAILY BURN"
-            value={agent ? `$${agent.economy.computeCostDailyUsd}` : "—"}
+            value={agent?.economy ? `$${agent.economy.computeCostDailyUsd}` : "—"}
             color={C.rose}
           />
           <DnaCell

@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { MarketTicker } from "@/core/market/types";
 import { useLiveMarketTickers } from "@/hooks/use-live-market-tickers";
+import { parseAgentStatus, type AgentStatus } from "@/lib/agent-status";
 import { Markdown } from "./markdown";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -36,15 +37,6 @@ type Position = {
   leverage: number;
   /** Filled when recomputing from Hyperliquid allMids WebSocket */
   liveMark?: number;
-};
-
-type AgentStatus = {
-  running: boolean;
-  model: string;
-  testnet: boolean;
-  hlAddress: string | null;
-  scanIntervalMs: number;
-  constraints: { maxPositions: number; maxPositionUsd: number; maxLeverage: number };
 };
 
 type MemoryLesson = {
@@ -371,7 +363,12 @@ export default function LyraWatchPage() {
           fetch("/api/lyra/status"),
           fetch("/api/lyra/survival"),
         ]);
-        if (statusRes.ok) setAgent(await statusRes.json() as AgentStatus);
+        if (statusRes.ok) {
+          const parsed = parseAgentStatus(await statusRes.json());
+          setAgent(parsed);
+        } else {
+          setAgent(null);
+        }
         if (survivalRes.ok) {
           const data = await survivalRes.json() as Survival & { error?: string };
           if (data && typeof data.ageDays === "number" && !data.error) {
@@ -682,9 +679,9 @@ export default function LyraWatchPage() {
                         : undefined
                 }
               />
-              <Row k="max position"   v={agent ? fmtUsd(agent.constraints.maxPositionUsd) : "—"} />
-              <Row k="max leverage"   v={agent ? `${agent.constraints.maxLeverage}×` : "—"} />
-              <Row k="max concurrent" v={agent ? String(agent.constraints.maxPositions) : "—"} />
+              <Row k="max position"   v={agent?.constraints ? fmtUsd(agent.constraints.maxPositionUsd) : "—"} />
+              <Row k="max leverage"   v={agent?.constraints ? `${agent.constraints.maxLeverage}×` : "—"} />
+              <Row k="max concurrent" v={agent?.constraints ? String(agent.constraints.maxPositions) : "—"} />
               <Row k="wallet"         v={shortAddress(agent?.hlAddress ?? null)} dim />
               {(hlMarginStatus === "not_configured" || hlMarginStatus === "fetch_failed") && (
                 <div
