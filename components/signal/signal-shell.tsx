@@ -312,7 +312,7 @@ export function SignalShell() {
           >
             {!hydrated && alerts.length === 0 ? (
               <FeedSkeleton />
-            ) : status === "disabled" ? (
+            ) : status === "disabled" && rawAlerts.length === 0 ? (
               <EmptyState
                 title="Signal endpoint not configured"
                 message="Set NEXT_PUBLIC_LYRA_SIGNAL_URL to point to a running lyra-signal instance."
