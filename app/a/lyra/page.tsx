@@ -47,6 +47,14 @@ type MemoryLesson = {
   ts: string;
 };
 
+type MemoryPayload = {
+  type?: unknown;
+  content?: unknown;
+  confidence?: unknown;
+  symbol?: unknown;
+  createdAt?: unknown;
+};
+
 type MarketTick = { symbol: string; mark: number; trend?: string };
 
 type NewsHeadline = {
@@ -67,6 +75,27 @@ type FearGreed = {
   classification: string;
   delta: number | null;
 };
+
+function asText(value: unknown, fallback = ""): string {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function asNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function toMemoryLesson(memory: MemoryPayload): MemoryLesson | null {
+  const content = asText(memory.content);
+  if (!content) return null;
+
+  return {
+    type: asText(memory.type, "insight"),
+    content,
+    confidence: asNumber(memory.confidence, 0.5),
+    symbol: asText(memory.symbol) || undefined,
+    ts: asText(memory.createdAt),
+  };
+}
 
 type Survival = {
   ageDays: number;
@@ -393,16 +422,10 @@ export default function LyraWatchPage() {
   useEffect(() => {
     fetch("/api/lyra/memory")
       .then((r) => r.ok ? r.json() : null)
-      .then((data: { memories?: Array<{ type: string; content: string; confidence: number; symbol?: string; createdAt?: string }> } | null) => {
+      .then((data: { memories?: MemoryPayload[] } | null) => {
         if (data?.memories?.length) {
           setMemories(
-            data.memories.slice(0, 14).map((m) => ({
-              type: m.type,
-              content: m.content,
-              confidence: m.confidence,
-              symbol: m.symbol,
-              ts: m.createdAt ?? "",
-            })),
+            data.memories.slice(0, 14).map(toMemoryLesson).filter((m): m is MemoryLesson => Boolean(m)),
           );
         }
       })
@@ -455,13 +478,15 @@ export default function LyraWatchPage() {
         }
         // Memories — populated at cycle start (scan) and on write_memory
         if (msg.type === "scan" && Array.isArray(msg.data?.memories)) {
-          const mems = (msg.data.memories as Array<{ type: string; content: string; confidence: number; symbol?: string; createdAt?: string }>)
-            .map((m) => ({ type: m.type, content: m.content, confidence: m.confidence, symbol: m.symbol, ts: m.createdAt ?? "" }));
+          const mems = (msg.data.memories as MemoryPayload[])
+            .map(toMemoryLesson)
+            .filter((m): m is MemoryLesson => Boolean(m));
           setMemories(mems.slice(0, 14));
         }
         if (msg.type === "tool_result" && Array.isArray(msg.data?.memories)) {
-          const mems = (msg.data.memories as Array<{ type: string; content: string; confidence: number; symbol?: string; createdAt?: string }>)
-            .map((m) => ({ type: m.type, content: m.content, confidence: m.confidence, symbol: m.symbol, ts: m.createdAt ?? "" }));
+          const mems = (msg.data.memories as MemoryPayload[])
+            .map(toMemoryLesson)
+            .filter((m): m is MemoryLesson => Boolean(m));
           setMemories(mems.slice(0, 14));
         }
         if (msg.type === "tool_result" && Array.isArray(msg.data?.markets)) {
@@ -1429,10 +1454,11 @@ function PositionCard({ p }: { p: Position }) {
 
 function MemoryItem({ m }: { m: MemoryLesson }) {
   const conf = Math.round(m.confidence * 100);
+  const typeLabel = asText(m.type, "insight").toUpperCase();
   return (
     <div className="pl-3" style={{ borderLeft: `2px solid ${C.violet}55` }}>
       <div className="flex items-baseline gap-2 text-[9px] font-semibold tracking-[0.18em]">
-        <span style={{ color: C.violet }}>{m.type.toUpperCase()}</span>
+        <span style={{ color: C.violet }}>{typeLabel}</span>
         {m.symbol && <span style={{ color: C.inkDim }}>· {m.symbol}</span>}
         <span className="ml-auto tabular-nums" style={{ color: C.inkDim }}>
           {conf}%
