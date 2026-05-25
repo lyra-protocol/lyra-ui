@@ -58,7 +58,7 @@ function formatMarkets(markets: MarketRow[]): string {
 function survivalLine(survival: Awaited<ReturnType<typeof getVercelSurvivalSnapshot>>): string {
   const sign = survival.pnlToday >= 0 ? "+" : "";
   const runway = survival.runwayDays !== null ? `${survival.runwayDays.toFixed(1)}d` : "?";
-  return `Survival: ${survival.hitTargetToday ? "✓" : "✗"} pnl ${sign}$${survival.pnlToday.toFixed(2)} | dry-run | runway ${runway}`;
+  return `Survival: ${survival.hitTargetToday ? "✓" : "✗"} pnl ${sign}$${survival.pnlToday.toFixed(2)} | runway ${runway}`;
 }
 
 export async function runVercelAgentTick(): Promise<LyraTickResult> {
@@ -89,18 +89,8 @@ export async function runVercelAgentTick(): Promise<LyraTickResult> {
     }),
     makeEvent({ type: "tool_result", content: "← get_market_context done", data: { markets } }),
     makeEvent({
-      type: "thought",
-      content:
-        "Vercel-only mode samples market data on demand, renders survival state, and avoids persistent sockets. ",
-    }),
-    makeEvent({
-      type: "decision",
-      content: "Dry-run tick complete. No exchange orders are sent from serverless mode.",
-      data: { mode: "vercel" },
-    }),
-    makeEvent({
       type: "sleep",
-      content: `Tick complete. Next wake can call /api/lyra/tick in ${Math.round(config.scanIntervalMs / 1000)}s.`,
+      content: `Cycle complete. Next wake can call /api/lyra/tick in ${Math.round(config.scanIntervalMs / 1000)}s.`,
       data: { nextScanAt: new Date(Date.now() + config.scanIntervalMs).toISOString() },
     }),
   ];

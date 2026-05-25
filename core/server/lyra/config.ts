@@ -36,7 +36,7 @@ export function getLyraAgentConfig() {
   return {
     mode,
     upstreamUrl,
-    model: readEnv("LYRA_AGENT_MODEL") || readEnv("AZURE_OPENAI_MODEL") || "vercel-dry-run",
+    model: readEnv("LYRA_AGENT_MODEL") || readEnv("AZURE_OPENAI_MODEL") || "lyra-serverless",
     testnet: readBoolean("LYRA_HL_TESTNET", true),
     hlAddress: readEnv("LYRA_HL_ADDRESS") || readEnv("LYRA_TESTNET_WALLET_ADDRESS") || null,
     scanIntervalMs: readNumber("LYRA_SCAN_INTERVAL_MS", 120_000),

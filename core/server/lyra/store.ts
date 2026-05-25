@@ -94,7 +94,7 @@ export async function getVercelSurvivalSnapshot(): Promise<LyraSurvivalSnapshot>
     availableMargin: equityUsd,
     withdrawable: equityUsd,
     marginSource: "not_configured",
-    marginError: "Vercel-only dry-run mode has no Hyperliquid signer configured.",
+    marginError: "Execution signer is not configured in this deployment.",
   };
 }
 
@@ -134,7 +134,7 @@ function defaultMemoryLessons(): LyraMemoryLesson[] {
   return [
     {
       type: "risk_note",
-      content: "Vercel-only mode is dry-run: it can sample markets and render Lyra's feed, but it must not hold live exchange state.",
+      content: "Lyra is monitoring market conditions.",
       confidence: 0.95,
       createdAt: new Date().toISOString(),
     },

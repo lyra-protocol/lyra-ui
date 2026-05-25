@@ -11,6 +11,5 @@ export function getVercelComputeStats() {
     inputCostPerM: 0,
     outputCostPerM: 0,
     mode: "vercel",
-    note: "Vercel-only dry-run ticks do not call the reasoning model yet.",
   };
 }
