@@ -3,7 +3,7 @@ import "server-only";
 import { fetchMarketOverviewServer } from "@/core/market/market-server";
 
 const SIGNAL_PRICE_USDC = 0.25;
-const PAYMENT_PREFIX = "lyra_vc_";
+const PAYMENT_PREFIX = "lyra_";
 
 type PaymentInput = {
   agentId?: unknown;
@@ -30,7 +30,7 @@ export function getCircleStatus() {
   const walletAddress = env("CIRCLE_WALLET_ADDRESS") || null;
   return {
     ok: true,
-    environment: env("CIRCLE_ENVIRONMENT") || "vercel",
+    environment: env("CIRCLE_ENVIRONMENT") || "production",
     walletId: env("CIRCLE_WALLET_ID") || "lyra-wallet",
     walletAddress,
     signalPriceUsdc: SIGNAL_PRICE_USDC,
