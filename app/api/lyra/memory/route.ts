@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
+import { getVercelMemoryLessons } from "@/core/server/lyra/store";
+import { fetchAgentJson } from "@/core/server/lyra/upstream";
 
 export const dynamic = "force-dynamic";
-
-const AGENT_URL = process.env.LYRA_AGENT_URL ?? "http://localhost:4060";
+export const runtime = "nodejs";
 
 export async function GET() {
-  try {
-    const res = await fetch(`${AGENT_URL}/memory`, { cache: "no-store" });
-    const data = await res.json();
-    return NextResponse.json(data);
-  } catch {
-    return NextResponse.json({ memories: [], count: 0 }, { status: 200 });
-  }
+  const upstream = await fetchAgentJson("/memory");
+  if (upstream.ok) return NextResponse.json(upstream.data);
+
+  const memories = await getVercelMemoryLessons(20);
+  return NextResponse.json({ memories, count: memories.length, mode: "vercel" });
 }
