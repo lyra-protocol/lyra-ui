@@ -341,6 +341,7 @@ export default function LyraWatchPage() {
   const [trail, setTrail] = useState<Record<string, number[]>>({});
   const [agent, setAgent] = useState<AgentStatus | null>(null);
   const [connected, setConnected] = useState(false);
+  const [statusChecked, setStatusChecked] = useState(false);
   const [scanCount, setScanCount] = useState(0);
   const [bootedAt] = useState<number>(() => Date.now());
   const [now, setNow] = useState<number>(() => Date.now());
@@ -372,6 +373,9 @@ export default function LyraWatchPage() {
     });
   }, [markets, liveTickers]);
 
+  const connectionLabel = !statusChecked ? "SYNCING" : connected ? "LIVE" : "OFFLINE";
+  const connectionColor = !statusChecked ? C.gold : connected ? C.emerald : C.rose;
+
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
@@ -395,8 +399,10 @@ export default function LyraWatchPage() {
         if (statusRes.ok) {
           const parsed = parseAgentStatus(await statusRes.json());
           setAgent(parsed);
+          setConnected(parsed?.running === true);
         } else {
           setAgent(null);
+          setConnected(false);
         }
         if (survivalRes.ok) {
           const data = await survivalRes.json() as Survival & { error?: string };
@@ -411,7 +417,11 @@ export default function LyraWatchPage() {
             }
           }
         }
-      } catch { /* offline */ }
+      } catch {
+        setConnected(false);
+      } finally {
+        setStatusChecked(true);
+      }
     };
     poll();
     const t = setInterval(poll, 5000);
@@ -437,7 +447,11 @@ export default function LyraWatchPage() {
     const es = new EventSource("/api/lyra/stream");
 
     es.onopen  = () => setConnected(true);
-    es.onerror = () => setConnected(false);
+    es.onerror = () => {
+      // Vercel serverless streams can close after sending a small event batch.
+      // Treat reachability from /status as the source of truth instead of
+      // flashing OFFLINE between EventSource reconnect attempts.
+    };
 
     es.onmessage = (evt) => {
       try {
@@ -609,12 +623,12 @@ export default function LyraWatchPage() {
           <Stat k="uptime"  v={uptime} />
           <Stat k="scans"   v={String(scanCount)} />
           <div className="flex items-center gap-2">
-            <Dot color={connected ? C.emerald : C.rose} pulse={connected} />
+            <Dot color={connectionColor} pulse={connected || !statusChecked} />
             <span
               className="text-[10px] font-semibold tracking-[0.18em]"
-              style={{ color: connected ? C.emerald : C.rose }}
+              style={{ color: connectionColor }}
             >
-              {connected ? "LIVE" : "OFFLINE"}
+              {connectionLabel}
             </span>
           </div>
         </div>
