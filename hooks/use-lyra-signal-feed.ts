@@ -12,7 +12,7 @@ import {
 } from "@/core/signal/signal-cache";
 
 const FEED_PATH = "/feed";
-const DEFAULT_SIGNAL_URL = "wss://lyra-signal-production.up.railway.app";
+const DEFAULT_SIGNAL_URL = "";
 /** Coalesce rapid WS frames so React + IndexedDB do not thrash on hot markets. */
 const FLUSH_MS = 72;
 

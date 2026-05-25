@@ -101,7 +101,7 @@ export async function runVercelAgentTick(): Promise<LyraTickResult> {
       0,
       makeEvent({
         type: "error",
-        content: "Market data unavailable in this Vercel tick. The page will retry on the next wake.",
+        content: "Market data unavailable in this cycle. The page will retry on the next wake.",
       }),
     );
   }
