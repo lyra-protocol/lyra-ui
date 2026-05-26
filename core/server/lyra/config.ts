@@ -2,6 +2,8 @@ import "server-only";
 
 export type LyraAgentMode = "auto" | "proxy" | "vercel";
 
+const DEFAULT_LYRA_AGENT_URL = "https://lyra-agent-vercel.vercel.app";
+
 function readEnv(key: string): string {
   return process.env[key]?.trim() || "";
 }
@@ -31,7 +33,7 @@ function readMode(): LyraAgentMode {
 
 export function getLyraAgentConfig() {
   const mode = readMode();
-  const upstreamUrl = normalizeOrigin(readEnv("LYRA_AGENT_URL"));
+  const upstreamUrl = normalizeOrigin(readEnv("LYRA_AGENT_URL") || DEFAULT_LYRA_AGENT_URL);
 
   return {
     mode,

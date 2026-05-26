@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { fetchMarketOverviewServer } from "@/core/market/market-server";
 import type { SignalAlert } from "@/core/signal/signal-types";
 
-const DEFAULT_SIGNAL_URL = "";
+const DEFAULT_SIGNAL_URL = "https://lyra-signal-vercel.vercel.app";
 const LOCAL_PRODUCTS = ["SOL-USD", "BTC-USD", "ETH-USD"] as const;
 
 export async function GET(request: Request) {

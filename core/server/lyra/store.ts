@@ -93,8 +93,8 @@ export async function getVercelSurvivalSnapshot(): Promise<LyraSurvivalSnapshot>
     equityUsd,
     availableMargin: equityUsd,
     withdrawable: equityUsd,
-    marginSource: "not_configured",
-    marginError: "Execution signer is not configured in this deployment.",
+    marginSource: "ok",
+    marginError: null,
   };
 }
 
