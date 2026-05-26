@@ -189,7 +189,7 @@ export function McpConnectorPage() {
                     <span className="font-mono text-[11px] text-foreground/65">{LYRA_MCP_DEFAULT_PUBLIC_ORIGIN}</span>
                   </p>
                   <p>
-                    To use a different MCP host (e.g. a custom domain in front of Railway), set{" "}
+                    To use a different MCP host (e.g. a custom domain in front of Vercel), set{" "}
                     <span className="font-mono text-[11px]">NEXT_PUBLIC_LYRA_MCP_BASE_URL</span> at build time —
                     no trailing slash. Ensure that host is listed in the MCP server’s allowed hosts.
                   </p>
@@ -498,7 +498,7 @@ export function McpConnectorPage() {
           <ul className="mt-4 space-y-3 border-t border-foreground/[0.06] pt-4 text-[13px] leading-relaxed text-foreground/55">
             <li>
               <span className="font-medium text-foreground/75">403 from Claude:</span> the MCP host list on the
-              server must include every domain you paste (custom domain and Railway hostname).
+              server must include every domain you paste (custom domain and Vercel hostname).
             </li>
             <li>
               <span className="font-medium text-foreground/75">“Unknown token”:</span> create a new token here;

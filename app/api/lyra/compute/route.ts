@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
+import { getVercelComputeStats } from "@/core/server/lyra/compute";
+import { fetchAgentJson } from "@/core/server/lyra/upstream";
 
 export const dynamic = "force-dynamic";
-
-const AGENT_URL = process.env.LYRA_AGENT_URL ?? "http://localhost:4060";
+export const runtime = "nodejs";
 
 export async function GET() {
-  try {
-    const res = await fetch(`${AGENT_URL}/compute`, { cache: "no-store" });
-    const data = await res.json();
-    return NextResponse.json(data);
-  } catch {
-    return NextResponse.json({ ok: false, error: "Agent unreachable" }, { status: 200 });
-  }
+  const upstream = await fetchAgentJson("/compute");
+  if (upstream.ok) return NextResponse.json(upstream.data);
+
+  return NextResponse.json(getVercelComputeStats());
 }

@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
-import { proxyAgentPost } from "@/lib/lyra-agent";
+import { verifyPayment } from "@/core/server/circle-serverless";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function POST(
   _req: Request,
   ctx: { params: Promise<{ paymentId: string }> },
 ) {
-  try {
-    const { paymentId } = await ctx.params;
-    const res = await proxyAgentPost(`/api/circle/payments/${paymentId}/verify`);
-    return NextResponse.json(await res.json(), { status: res.status });
-  } catch {
-    return NextResponse.json({ ok: false, error: "Agent unreachable" }, { status: 502 });
-  }
+  const { paymentId } = await ctx.params;
+  return NextResponse.json(verifyPayment(paymentId));
 }

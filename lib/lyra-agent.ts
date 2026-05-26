@@ -1,4 +1,4 @@
-export const LYRA_AGENT_URL = process.env.LYRA_AGENT_URL ?? "http://localhost:4060";
+export const LYRA_AGENT_URL = process.env.LYRA_AGENT_URL ?? "https://lyra-agent-vercel.vercel.app";
 
 export async function proxyAgentGet(path: string): Promise<Response> {
   return fetch(`${LYRA_AGENT_URL}${path}`, { cache: "no-store" });
