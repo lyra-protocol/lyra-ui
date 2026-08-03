@@ -1,91 +1,116 @@
 @import "tailwindcss";
 
+/*
+ * Palette from REBUILD-MEMO.md §7.
+ *
+ * The semantic rule that must never be broken: gold appears only where
+ * something is verifiable. Not for decoration, not for emphasis, not for a
+ * hover state. If it is gold, you can check it.
+ *
+ * Red and green are restricted entirely to PnL figures. Never UI chrome.
+ */
 :root {
   color-scheme: dark;
-  --background: #000000;
-  --foreground: #ffffff;
-  --panel: #0b0b0b;
-  --panel-2: #141414;
-  --line: rgba(255, 255, 255, 0.09);
-  --line-strong: rgba(255, 255, 255, 0.18);
-  --positive: #22c55e;
-  --negative: #ef4444;
-  --placeholder: rgba(255, 255, 255, 0.4);
-  --color-black: #ffffff;
-  --color-white: #0b0b0b;
-  --radius: 10px;
-}
 
-:root[data-theme="light"] {
-  color-scheme: light;
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --panel: #ffffff;
-  --panel-2: #f6f6f6;
-  --line: rgba(10, 10, 10, 0.08);
-  --line-strong: rgba(10, 10, 10, 0.14);
-  --positive: #0f9d58;
-  --negative: #e13f39;
-  --placeholder: rgba(10, 10, 10, 0.36);
-  --color-black: #0a0a0a;
-  --color-white: #ffffff;
-}
+  --night: #0b0e1a;        /* deep observatory night — background, not pure black */
+  --paper: #e8e4d9;        /* plate paper — primary text */
+  --slate: #7b8fa8;        /* cold slate — secondary text, grid lines */
+  --vega: #c9a227;         /* Vega gold — verification marks and chain links ONLY */
+  --loss: #b4453c;         /* muted signal red — PnL only */
+  --gain: #4a7c59;         /* muted signal green — PnL only */
 
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --background: #000000;
-  --foreground: #ffffff;
-  --panel: #0b0b0b;
-  --panel-2: #141414;
-  --line: rgba(255, 255, 255, 0.09);
-  --line-strong: rgba(255, 255, 255, 0.18);
-  --positive: #22c55e;
-  --negative: #ef4444;
-  --placeholder: rgba(255, 255, 255, 0.4);
-  --color-black: #ffffff;
-  --color-white: #0b0b0b;
-}
-
-html,
-body {
-  width: 100%;
-  height: 100%;
-}
-
-body {
-  margin: 0;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-.bg-background {
-  background-color: var(--background);
-}
-
-.text-foreground {
-  color: var(--foreground);
+  --rule: rgba(123, 143, 168, 0.18);
+  --rule-strong: rgba(123, 143, 168, 0.32);
+  --panel: rgba(123, 143, 168, 0.05);
 }
 
 * {
   box-sizing: border-box;
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--night);
+  color: var(--paper);
+  /* Tabular figures everywhere. Numbers are the content on this site. */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  -webkit-font-smoothing: antialiased;
 }
 
-button {
-  cursor: pointer;
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
 }
 
-input::placeholder,
-textarea::placeholder {
-  color: var(--placeholder);
+.mono {
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* The display face: editorial/scientific character, used sparingly. */
+.display {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Gold is reserved. Links that leave for chain data earn it. */
+a.verify {
+  color: var(--vega);
+  border-bottom: 1px solid rgba(201, 162, 39, 0.35);
+}
+a.verify:hover {
+  border-bottom-color: var(--vega);
+}
+
+::selection {
+  background: rgba(201, 162, 39, 0.25);
+}
+
+/* Visible keyboard focus — the quality floor, not announced. */
+:focus-visible {
+  outline: 2px solid var(--vega);
+  outline-offset: 2px;
+}
+
+/* The one piece of motion on the site: a new trade settling into the record. */
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.settle {
+  animation: settle 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settle {
+    animation: none;
+  }
+  * {
+    transition: none !important;
+  }
+}
+
+/* Wide data scrolls inside its own container; the page body never does. */
+.scroll-x {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-strong) transparent;
 }

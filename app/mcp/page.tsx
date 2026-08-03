@@ -1,11 +1,11 @@
-import { McpConnectorPage } from "@/components/mcp/mcp-connector-page";
+import { Mcp } from "@/components/mcp";
 
 export const metadata = {
-  title: "Lyra — Connect Claude (MCP)",
+  title: "Lyra — MCP",
   description:
-    "Mint a Lyra MCP token, copy your Streamable HTTP connector URL, and follow Claude integration steps for Lyra trading tools.",
+    "Read Lyra's record from Claude, Cursor or any MCP client. Read-only, no key required.",
 };
 
 export default function McpPage() {
-  return <McpConnectorPage />;
+  return <Mcp />;
 }

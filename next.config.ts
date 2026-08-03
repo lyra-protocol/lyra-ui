@@ -1,20 +1,9 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  async redirects() {
-    return [
-      {
-        source: "/",
-        destination: "/lyra",
-        permanent: false,
-      },
-      {
-        source: "/workspace",
-        destination: "/lyra",
-        permanent: false,
-      },
-    ];
-  },
-};
+/*
+ * Deliberately empty. The old config redirected / to /lyra, a page that no
+ * longer exists — the landing page is now the record itself.
+ */
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

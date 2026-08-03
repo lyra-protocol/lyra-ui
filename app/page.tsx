@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { Landing } from "@/components/landing";
 
 export default function HomePage() {
-  redirect("/lyra");
+  return <Landing />;
 }
