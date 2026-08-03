@@ -33,8 +33,15 @@
 
 * { box-sizing: border-box; }
 
+/*
+ * The page does not scroll *on the terminal* — but that is the terminal's rule,
+ * not the document's. `.app` is exactly one viewport tall and clips its own
+ * children, which achieves it without stopping every other route from
+ * scrolling. Hiding overflow here instead made the landing page unreadable
+ * below the fold.
+ */
 html, body {
-  height: 100%; margin: 0; overflow: hidden;
+  height: 100%; margin: 0;
   background: var(--paper); color: var(--ink);
 }
 body {
@@ -305,3 +312,155 @@ th.r, td.r { text-align: right; }
 .empty div + div { margin-top: 5px; line-height: 1.6; }
 
 :focus-visible { outline: 1px solid var(--ink); outline-offset: -1px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Lyra's page — /lyra
+ *
+ * Shares the terminal's palette and its rules about colour, but not its
+ * density: this is read once, at a distance, by someone deciding whether to
+ * look further. So the type scale is large and the rhythm is slow, while every
+ * number on it is the same live figure the terminal is reading.
+ *
+ * The one inherited law: colour means PnL direction and liveness, nothing else.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+.ly {
+  --measure: 66ch;
+  /* A display face for prose, the terminal's mono for anything measured. The
+     pairing is the argument: words are written, figures are instrument output. */
+  --sans: "Helvetica Neue", Inter, system-ui, -apple-system, sans-serif;
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--paper);
+}
+.ly ::selection { background: var(--ink); color: var(--paper); }
+
+/* ── hero ───────────────────────────────────────────────────────────────── */
+
+.ly-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1fr);
+  min-height: 100svh;
+  border-bottom: 1px solid var(--ink);
+}
+
+.ly-portrait { position: relative; overflow: hidden; background: var(--wash);
+               border-right: 1px solid var(--ink); }
+.ly-name { position: absolute; left: 0; bottom: 0; z-index: 1;
+           display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+           padding: 22px 26px; background: var(--paper);
+           border-top: 1px solid var(--ink); border-right: 1px solid var(--ink); }
+.ly-wordmark { font-size: 30px; letter-spacing: .2em; font-weight: 700; }
+.ly-role { font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+           letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+
+.ly-intro { display: flex; flex-direction: column; justify-content: center;
+            gap: 26px; padding: 64px 60px; }
+
+.ly-status { font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+             letter-spacing: .14em; color: var(--ink-2); display: flex;
+             align-items: center; gap: 8px; }
+.ly-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); }
+.ly-dot.on { background: var(--live); animation: blink 2.2s ease-in-out infinite; }
+
+.ly h1 { font-size: clamp(30px, 3.4vw, 50px); line-height: 1.08; margin: 0;
+         letter-spacing: -.022em; font-weight: 600; text-wrap: balance; max-width: 17ch; }
+.ly h1 em { font-style: normal; color: var(--ink-2); display: block; }
+
+.ly-lede { font-size: 17px; line-height: 1.6; color: var(--ink-2);
+           max-width: 54ch; margin: 0; }
+
+/* Figures are instrument output, so they are set in the instrument's face. */
+.ly-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+              border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
+.ly-fig { padding: 14px 16px; border-right: 1px solid var(--rule);
+          border-bottom: 1px solid var(--rule); }
+.ly-fig .k { font-family: ui-monospace, Menlo, monospace; font-size: 9px;
+             letter-spacing: .11em; color: var(--ink-3); }
+.ly-fig .v { font-family: ui-monospace, Menlo, monospace; font-size: 25px;
+             margin-top: 6px; font-variant-numeric: tabular-nums; }
+.ly-fig .n { font-family: ui-monospace, Menlo, monospace; font-size: 10px;
+             color: var(--ink-3); margin-top: 3px; }
+
+.ly-cta { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.ly-btn { display: inline-block; background: var(--ink); color: var(--paper);
+          text-decoration: none; padding: 13px 26px; font-size: 14px;
+          letter-spacing: .02em; border: 1px solid var(--ink); }
+.ly-btn:hover { background: var(--paper); color: var(--ink); }
+.ly-btn.lg { padding: 17px 40px; font-size: 16px; }
+.ly-fine { font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+           color: var(--ink-3); line-height: 1.6; margin: 0; }
+.ly-fine.ly-block { max-width: 62ch; margin-top: 26px; }
+
+/* ── numbered sections ──────────────────────────────────────────────────── */
+
+.ly-sec { display: grid; grid-template-columns: 62px minmax(0, 0.85fr) minmax(0, 1.15fr);
+          gap: 0 44px; padding: 78px 60px; border-bottom: 1px solid var(--rule);
+          max-width: 1460px; align-items: start; margin-inline: auto; }
+.ly-sec-n { font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+            letter-spacing: .14em; color: var(--ink-3); padding-top: 9px; }
+.ly-sec-b { max-width: var(--measure); }
+/* The heading holds its own column and stays put while the body is read. */
+.ly-sec > h2 { margin: 0; position: sticky; top: 34px; }
+.ly h2 { font-size: clamp(23px, 2.3vw, 33px); line-height: 1.16; margin: 0 0 22px;
+         letter-spacing: -.018em; font-weight: 600; text-wrap: balance; }
+.ly-sec p { font-size: 16px; line-height: 1.68; color: var(--ink-2); margin: 0 0 16px; }
+.ly-sec p em { font-style: italic; color: var(--ink); }
+.ly code { font-family: ui-monospace, Menlo, monospace; font-size: .88em;
+           background: var(--wash); padding: 1px 5px; border: 1px solid var(--rule-2); }
+
+.ly-aside { border-left: 2px solid var(--ink); padding: 3px 0 3px 18px;
+            margin: 26px 0 0; font-size: 15px; line-height: 1.62; color: var(--ink-2); }
+.ly-aside b { color: var(--ink); font-weight: 600; }
+
+/* The chain, numbered because step four cannot exist without one to three. */
+.ly-chain { list-style: none; margin: 0 0 22px; padding: 0;
+            border-top: 1px solid var(--rule); }
+.ly-chain li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto;
+               gap: 4px 14px; align-items: baseline; padding: 13px 0;
+               border-bottom: 1px solid var(--rule); font-size: 15px; }
+.ly-chain li .n { font-family: ui-monospace, Menlo, monospace; font-size: 10px;
+                  color: var(--ink-3); }
+.ly-chain li b { color: var(--ink); font-weight: 600; }
+/* Options are the vocabulary she must choose from, so they read as data. */
+.ly-chain li .o { font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+                  color: var(--ink-3); white-space: nowrap; }
+@media (max-width: 640px) {
+  .ly-chain li { grid-template-columns: 22px minmax(0, 1fr); }
+  .ly-chain li .o { grid-column: 2; white-space: normal; }
+}
+
+/* ── the standing ───────────────────────────────────────────────────────── */
+
+.ly-table { border-top: 1px solid var(--rule); }
+.ly-row { display: flex; justify-content: space-between; align-items: baseline;
+          gap: 24px; padding: 13px 0; border-bottom: 1px solid var(--rule); }
+.ly-row .k { font-size: 15px; color: var(--ink-2); }
+.ly-row .k .sub { display: block; font-family: ui-monospace, Menlo, monospace;
+                  font-size: 10px; color: var(--ink-3); margin-top: 3px; }
+.ly-row .v { font-family: ui-monospace, Menlo, monospace; font-size: 17px;
+             font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ly-row.strong { border-bottom-width: 2px; border-bottom-color: var(--ink); }
+.ly-row.strong .k { color: var(--ink); font-weight: 600; }
+.ly-row.strong .v { font-size: 22px; }
+
+.ly-end { padding: 96px 60px 110px; text-align: center; }
+.ly-end h2 { max-width: 20ch; margin: 0 auto 30px; }
+.ly-end .ly-fine { margin-top: 20px; }
+
+@media (max-width: 1080px) {
+  .ly-sec { grid-template-columns: 52px minmax(0, 1fr); gap: 0 24px; }
+  .ly-sec > h2 { position: static; margin-bottom: 20px; grid-column: 2; }
+  .ly-sec-b { grid-column: 2; }
+}
+
+@media (max-width: 900px) {
+  .ly-hero { grid-template-columns: 1fr; }
+  .ly-portrait { min-height: 62svh; border-right: none;
+                 border-bottom: 1px solid var(--ink); }
+  .ly-intro { padding: 40px 22px 52px; }
+  .ly-sec { grid-template-columns: 1fr; padding: 52px 22px; gap: 10px; }
+  .ly-sec > h2, .ly-sec-b { grid-column: 1; }
+  .ly-end { padding: 64px 22px 78px; }
+  .ly-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
