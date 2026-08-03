@@ -157,17 +157,22 @@ export function PositionsPanel({ wallet }: { wallet: WalletState | null }) {
   return (
     <table>
       <thead><tr>
-        <th>SYM</th><th>SIDE</th><th className="r">SIZE</th>
-        <th className="r">ENTRY</th><th className="r">STOP</th><th className="r">UPNL</th>
+        <th>SYM</th><th>SIDE</th><th className="r">SIZE</th><th className="r">ENTRY</th>
+        <th className="r">MARK</th><th className="r">STOP</th><th className="r">RISK</th>
+        <th className="r">AGE</th><th className="r">UPNL</th>
       </tr></thead>
       <tbody>
         {rows.map((p) => (
           <tr key={p.asset}>
             <td>{p.asset}</td>
             <td>{p.side === "long" ? "LONG" : "SHORT"}</td>
-            <td className="r">{p.size}</td>
+            <td className="r">{Number(p.size).toLocaleString("en-US", { maximumFractionDigits: 4 })}</td>
             <td className="r">{p.entryPx}</td>
-            <td className="r">{p.stopPx ?? "—"}</td>
+            <td className="r">{p.markPx}</td>
+            {/* An unprotected position is stated, never left blank. */}
+            <td className="r">{p.stopPx ? Number(p.stopPx).toPrecision(6) : "NONE"}</td>
+            <td className="r">{p.riskUsd === null ? "—" : `−${p.riskUsd.toFixed(0)}`}</td>
+            <td className="r">{held(p.openedAt)}</td>
             <td className={`r ${p.unrealizedPnlUsd >= 0 ? "up" : "dn"}`}>
               {p.unrealizedPnlUsd >= 0 ? "+" : "−"}{Math.abs(p.unrealizedPnlUsd).toFixed(2)}
             </td>
@@ -176,6 +181,14 @@ export function PositionsPanel({ wallet }: { wallet: WalletState | null }) {
       </tbody>
     </table>
   );
+}
+
+/** How long she has held it. Holds are meant to be long, so this is a claim. */
+function held(openedAt: number): string {
+  const m = Math.max(0, Math.round((Date.now() - openedAt) / 60000));
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h}h${String(m % 60).padStart(2, "0")}` : `${Math.floor(h / 24)}d${h % 24}h`;
 }
 
 /** Order book — real depth, at the venue's real 2s cadence. */

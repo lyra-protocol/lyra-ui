@@ -77,6 +77,10 @@ export type WalletState = {
     size: string;
     entryPx: string;
     stopPx: string | null;
+    markPx: string;
+    openedAt: number;
+    /** Loss if the stop fills. The figure a trader reads before PnL. */
+    riskUsd: number | null;
     unrealizedPnlUsd: number;
   }[];
 };
