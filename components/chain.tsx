@@ -5,76 +5,88 @@ import type { Decision } from "@/lib/painmap";
 /**
  * The reasoning chain.
  *
- * Rendered as a connected top-to-bottom sequence, not a row of fields. The
- * order is the evidence: her schema forces her to answer who is losing and
- * where they exit *before* she is permitted to name a trade, and the root
- * DESIGN.md §4.1 measured the same model reaching the opposite conclusion when
- * that order was not enforced.
+ * Her schema forces her to answer who is losing and where they exit *before*
+ * she is permitted to name a trade, and DESIGN.md §4.1 measured the same model
+ * reaching the opposite conclusion when that order was not enforced. So the
+ * order is the evidence, and the rendering has to carry it.
  *
- * Four fields laid out side by side read as four properties. A wired rail reads
- * as reasoning, which is what it is.
+ * Two orientations, both numbered:
+ *
+ *   across — in the wide decision band, four steps left to right joined by a
+ *            rule through the markers. The numbers do the sequencing work that
+ *            a vertical wire does, which is why they are not decoration here.
+ *   down   — in the narrow inspection panel, where a horizontal chain would
+ *            wrap and stop being a chain.
+ *
+ * Numbering is legitimate here for the reason it usually is not: this genuinely
+ * is a sequence, and step 4 is not permitted to exist without steps 1–3.
  */
 
-const QUESTIONS = ["WHO IS LOSING", "WHERE THEY EXIT", "HYPOTHESIS", "ACTION"] as const;
+const QUESTIONS = [
+  "Which side is losing?",
+  "Where forced orders sit",
+  "Hypothesis",
+  "Action",
+] as const;
 
 const HYPOTHESIS_PROSE: Record<string, string> = {
-  magnet: "Price is drawn toward the cluster",
-  wall: "Liquidity wall — absorbs and reverses",
-  cascade: "Cascade — a breach accelerates the move",
-  none: "None applies",
+  magnet: "MAGNET — price drawn to the cluster",
+  wall: "WALL — absorbs and reverses",
+  cascade: "CASCADE — a breach accelerates",
+  none: "NONE APPLIES",
 };
 
 const LOSING_PROSE: Record<string, string> = {
-  longs: "Longs are trapped",
-  shorts: "Shorts are trapped",
-  neither: "Neither side",
+  longs: "LONGS",
+  shorts: "SHORTS",
+  neither: "NEITHER SIDE",
 };
 
 const FORCED_PROSE: Record<string, string> = {
-  sells_below_spot: "Forced selling below spot",
-  buys_above_spot: "Forced buying above spot",
-  mixed: "Mixed — no concentration",
+  sells_below_spot: "SELLS BELOW SPOT",
+  buys_above_spot: "BUYS ABOVE SPOT",
+  mixed: "MIXED — NO CONCENTRATION",
 };
 
-export function steps(d: Decision): { k: string; v: string }[] {
+/** Longer prose for the inspection panel, where there is room to explain. */
+const GLOSS: Record<string, string> = {
+  longs: "Longs are underwater. Their exits are sells.",
+  shorts: "Shorts are underwater. Their exits are buys.",
+  neither: "Neither side is meaningfully trapped.",
+  sells_below_spot: "Liquidation prices cluster beneath the current price.",
+  buys_above_spot: "Liquidation prices cluster above the current price.",
+  mixed: "No single direction dominates the forced flow.",
+  magnet: "Price tends toward resting liquidity.",
+  wall: "The cluster absorbs the move and turns it.",
+  cascade: "Breaching the level forces more of the same flow.",
+  none: "No mechanism fits the observation.",
+};
+
+export function steps(d: Decision): { n: number; k: string; v: string; gloss: string }[] {
   return [
-    { k: QUESTIONS[0], v: LOSING_PROSE[d.losingSide] ?? d.losingSide },
-    { k: QUESTIONS[1], v: FORCED_PROSE[d.forcedOrdersAre] ?? d.forcedOrdersAre },
-    { k: QUESTIONS[2], v: HYPOTHESIS_PROSE[d.hypothesis] ?? d.hypothesis },
-    { k: QUESTIONS[3], v: d.action.replace(/_/g, " ").toUpperCase() },
+    { n: 1, k: QUESTIONS[0], v: LOSING_PROSE[d.losingSide] ?? d.losingSide, gloss: GLOSS[d.losingSide] ?? "" },
+    { n: 2, k: QUESTIONS[1], v: FORCED_PROSE[d.forcedOrdersAre] ?? d.forcedOrdersAre, gloss: GLOSS[d.forcedOrdersAre] ?? "" },
+    { n: 3, k: QUESTIONS[2], v: HYPOTHESIS_PROSE[d.hypothesis] ?? d.hypothesis, gloss: GLOSS[d.hypothesis] ?? "" },
+    { n: 4, k: QUESTIONS[3], v: d.action.toUpperCase(), gloss: "" },
   ];
 }
 
-export function Chain({ decision }: { decision: Decision }) {
+export function Chain({ decision, orientation = "across" }: {
+  decision: Decision;
+  orientation?: "across" | "down";
+}) {
   const rows = steps(decision);
   return (
-    <div className="chain">
-      {rows.map((s, i) => {
-        const terminal = i === rows.length - 1;
-        return (
-          <div key={s.k} className={terminal ? "link terminal" : "link"}>
-            <span className="rail">
-              <span className="node" />
-              <span className="wire" />
-            </span>
-            <span className="txt">
-              <span className="k">{s.k}</span>
-              <div className="v">{s.v}</div>
-              {terminal && (
-                /* Confidence is the output of the reasoning, so it sits with the
-                   action rather than floating at the edge of the card. */
-                <div className="conf">
-                  <span className="k">CONFIDENCE</span>
-                  <span className="bar">
-                    <i style={{ width: `${Math.max(2, decision.conviction * 100)}%` }} />
-                  </span>
-                  <span className="n">{(decision.conviction * 100).toFixed(0)}%</span>
-                </div>
-              )}
-            </span>
+    <div className={`chain ${orientation}`}>
+      {rows.map((s) => (
+        <div key={s.n} className={`link${s.n === 4 ? " terminal" : ""}`}>
+          <div className="mark">
+            <span className="num">{s.n}</span>
+            <span className="k">{s.k}</span>
           </div>
-        );
-      })}
+          <div className="v">{s.v}</div>
+        </div>
+      ))}
     </div>
   );
 }

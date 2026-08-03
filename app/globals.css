@@ -1,227 +1,286 @@
 @import "tailwindcss";
 
-  /*
-   * Lyra terminal — read-only.
-   *
-   * The spine of the screen is the decision feed, not the chart. Lyra does not
-   * sell price data; she sells a decision process that is committed to a
-   * permanent record before the outcome is known. The layout puts that in the
-   * centre and subordinates everything else to it.
-   *
-   * Single committed theme. Monospace throughout so labels and figures share one
-   * grid. Colour carries two meanings only — PnL direction and liveness.
-   * Structure is 1px rules and nothing else.
-   */
-  :root {
-    --paper:  #ffffff;
-    --ink:    #0a0a0b;
-    --ink-2:  #55555d;
-    --ink-3:  #8e8e97;
-    --rule:   #d8d8de;
-    --rule-2: #ececef;
-    --wash:   #f7f7f9;
-    --gain:   #0f7a3d;
-    --loss:   #d1352b;
-    --loss-bg:#fdeceb;
-    --live:   #12a150;
+/*
+ * Lyra terminal — read-only.
+ *
+ * Two bands. The market above (chart, book, account), Lyra below (her decision
+ * feed and one decision opened). The lower band is the product: Lyra does not
+ * sell price data, she sells a decision process committed to a permanent record
+ * before the outcome is known.
+ *
+ * Single committed theme, bright. Monospace throughout so labels and figures
+ * share one grid. Colour carries two meanings only — PnL direction and
+ * liveness. Structure is 1px rules and nothing else: no radius, no shadow, no
+ * gradient. Instruments do not have them.
+ */
+:root {
+  --paper:  #ffffff;
+  --ink:    #0a0a0b;
+  --ink-2:  #55555d;
+  --ink-3:  #8e8e97;
+  --rule:   #d8d8de;
+  --rule-2: #ececef;
+  --wash:   #f7f7f9;
+  --gain:   #0f7a3d;
+  --loss:   #d1352b;
+  --loss-bg:#fdeceb;
+  --bid-bg: #eeeef1;
+  --live:   #12a150;
 
-    --t-8:  8px;  --t-9:  9px;  --t-10: 10px;
-    --t-11: 11px; --t-12: 12px; --t-14: 14px; --t-18: 18px;
-  }
+  --t-8:  8px;  --t-9:  9px;  --t-10: 10px;
+  --t-11: 11px; --t-12: 12px; --t-13: 13px; --t-15: 15px; --t-20: 20px;
+}
 
-  * { box-sizing: border-box; }
+* { box-sizing: border-box; }
 
-  html, body {
-    height: 100%; margin: 0; overflow: hidden;
-    background: var(--paper); color: var(--ink);
-  }
-  body {
-    font-family: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
-    font-size: var(--t-11); line-height: 1.35;
-    font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;
-    -webkit-font-smoothing: antialiased;
-  }
+html, body {
+  height: 100%; margin: 0; overflow: hidden;
+  background: var(--paper); color: var(--ink);
+}
+body {
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  font-size: var(--t-11); line-height: 1.35;
+  font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;
+  -webkit-font-smoothing: antialiased;
+}
 
-  .app {
-    height: 100dvh; display: grid;
-    grid-template-rows: 32px 44px minmax(0, 1fr);
-    border: 1px solid var(--rule); overflow: hidden;
-  }
-  .app * { min-height: 0; min-width: 0; }
+/* The whole shell is one grid pinned to the viewport. Nothing below this
+   element is ever allowed to grow the page — panels scroll, the page does not. */
+.app {
+  height: 100dvh; display: grid;
+  grid-template-rows: 30px 46px minmax(0, 1.32fr) minmax(0, 1fr);
+  border: 1px solid var(--rule); overflow: hidden;
+}
+.app * { min-height: 0; min-width: 0; }
 
-  /* ── top bar ──────────────────────────────────────────────────────────── */
+/* ── top bar ────────────────────────────────────────────────────────────── */
 
-  .bar {
-    display: flex; align-items: center; gap: 16px; padding: 0 10px;
-    border-bottom: 1px solid var(--rule);
-    font-size: var(--t-10); letter-spacing: .04em; white-space: nowrap; overflow: hidden;
-  }
-  .bar .sp { flex: 1; }
-  .brand { font-weight: 700; letter-spacing: .11em; }
-  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--live);
-         display: inline-block; margin-right: 5px; vertical-align: 1px; }
-  @keyframes blink { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
-  .dot { animation: blink 2.2s ease-in-out infinite; }
-  @media (prefers-reduced-motion: reduce) { .dot { animation: none } }
+.bar {
+  display: flex; align-items: center; gap: 18px; padding: 0 11px;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--t-10); letter-spacing: .05em; white-space: nowrap; overflow: hidden;
+}
+.bar .sp { flex: 1; }
+.brand { font-weight: 700; letter-spacing: .13em; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--live);
+       display: inline-block; margin-right: 6px; vertical-align: 1px; }
+@keyframes blink { 0%,100% { opacity: 1 } 50% { opacity: .28 } }
+.dot { animation: blink 2.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .dot { animation: none } }
 
-  /* Freshness readouts. Bloomberg constantly says how old the data is. */
-  .fresh { display: flex; gap: 4px; align-items: baseline; }
-  .fresh b { font-weight: 400; }
+/* Freshness readouts. A terminal always says how old its data is. */
+.fresh { display: flex; gap: 5px; align-items: baseline; }
+.fresh b { font-weight: 400; }
 
-  /* ── markets strip ────────────────────────────────────────────────────── */
+/* ── universe strip ─────────────────────────────────────────────────────── */
 
-  .mkts { display: flex; border-bottom: 1px solid var(--rule); overflow: hidden; }
-  .mkt { flex: 1 1 0; padding: 3px 8px; border-right: 1px solid var(--rule);
-         display: flex; flex-direction: column; justify-content: center; }
-  .mkt:last-child { border-right: none; }
-  .mkt.on { background: var(--wash); box-shadow: inset 0 -2px 0 var(--ink); }
-  .mkt .s { font-size: var(--t-10); }
-  .mkt .n { display: flex; gap: 7px; align-items: baseline; font-size: var(--t-10); margin-top: 1px; }
+.mkts { display: flex; border-bottom: 1px solid var(--rule); overflow: hidden; }
+.mkt { flex: 1 1 0; padding: 4px 9px; border-right: 1px solid var(--rule);
+       display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
+.mkt:last-child { border-right: none; }
+.mkt:hover { background: var(--wash); }
+.mkt.on { background: var(--wash); box-shadow: inset 0 -2px 0 var(--ink); }
+.mkt .s { font-size: var(--t-11); }
+.mkt .n { display: flex; gap: 8px; align-items: baseline; font-size: var(--t-10); margin-top: 2px; }
 
-  /* ── the four columns ─────────────────────────────────────────────────── */
+/* ── market band ────────────────────────────────────────────────────────── */
 
-  .body {
-    display: grid;
-    grid-template-columns: minmax(240px, 0.85fr) minmax(300px, 1.05fr) minmax(320px, 1.15fr) 268px;
-    overflow: hidden;
-  }
-  .col { border-right: 1px solid var(--rule); display: grid; overflow: hidden; }
-  .col:last-child { border-right: none; }
-  /* Chart shrunk ~30%; the space goes to the pain map, which is the edge. */
-  .col-left { grid-template-rows: minmax(0, 0.78fr) minmax(0, 1fr); }
-  .col-far  { grid-template-rows: auto auto minmax(0, 1fr); }
+/* Chart takes half, the book a ladder's worth, her account the rest. Widths
+   are fixed on the right so the chart absorbs every extra pixel — it is the
+   only panel that improves with more width. */
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px 430px;
+  overflow: hidden;
+}
 
-  .panel { display: grid; grid-template-rows: auto minmax(0,1fr);
-           overflow: hidden; border-bottom: 1px solid var(--rule); }
-  .panel:last-child { border-bottom: none; }
+/* ── decision band ──────────────────────────────────────────────────────── */
 
-  .ph { display: flex; align-items: center; gap: 8px; padding: 4px 8px;
-        border-bottom: 1px solid var(--rule); font-size: var(--t-9);
-        letter-spacing: .05em; white-space: nowrap; overflow: hidden; }
-  .ph .sp { flex: 1; }
-  .ph .age { color: var(--ink-3); font-size: var(--t-8); }
+.band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 520px;
+  border-top: 1px solid var(--rule);
+  overflow: hidden;
+}
+.band > .panel { border-right: 1px solid var(--rule); border-bottom: none; }
+.band > .panel:last-child { border-right: none; }
 
-  .pb { overflow: auto; scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
-  .pb::-webkit-scrollbar { width: 6px; height: 6px; }
-  .pb::-webkit-scrollbar-thumb { background: var(--rule); }
+.col { border-right: 1px solid var(--rule); display: grid; overflow: hidden; }
+.col:last-child { border-right: none; }
+/* Account and positions take what they need; the pain map takes the rest,
+   because it is the panel no other terminal has. */
+.col-rail { grid-template-rows: auto auto minmax(0, 1fr); }
 
-  .up { color: var(--gain); } .dn { color: var(--loss); }
-  .mut { color: var(--ink-2); } .fade { color: var(--ink-3); }
+.panel { display: grid; grid-template-rows: auto minmax(0,1fr);
+         overflow: hidden; border-bottom: 1px solid var(--rule); }
+.panel:last-child { border-bottom: none; }
 
-  /* ── chart ────────────────────────────────────────────────────────────── */
+.ph { display: flex; align-items: center; gap: 9px; padding: 4px 9px;
+      border-bottom: 1px solid var(--rule); font-size: var(--t-9);
+      letter-spacing: .06em; white-space: nowrap; overflow: hidden; }
+.ph .sp { flex: 1; }
+.ph .age { color: var(--ink-3); font-size: var(--t-8); }
 
-  .chart { display: grid; grid-template-rows: minmax(0,1fr) 52px; }
-  canvas { display: block; width: 100%; height: 100%; }
+.pb { overflow: auto; scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
+.pb::-webkit-scrollbar { width: 7px; height: 7px; }
+.pb::-webkit-scrollbar-thumb { background: var(--rule); }
+.pb.nooverflow { overflow: hidden; }
 
-  /* ── pain map — enlarged, annotated ───────────────────────────────────── */
+.up { color: var(--gain); } .dn { color: var(--loss); }
+.mut { color: var(--ink-2); } .fade { color: var(--ink-3); }
 
-  .pm { padding: 7px 9px 10px; }
-  .pm-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end;
-             font-size: var(--t-9); margin-bottom: 8px; gap: 8px; }
-  .pm-head .r { text-align: right; }
-  .pm-head .c { text-align: center; border: 1px solid var(--ink); padding: 2px 7px; }
-  .pm-row { display: grid; grid-template-columns: 46px 1fr 5px 1fr 46px;
-            align-items: center; gap: 4px; font-size: var(--t-9); margin-bottom: 4px; }
-  .pm-l { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
-  .pm-r { display: flex; align-items: center; gap: 4px; }
-  .pm-bar { height: 11px; }
-  /* Below spot = longs liquidating = forced SELLING. Solid.
-     Above spot = shorts liquidating = forced BUYING. Open.
-     Direction survives without colour. */
-  .pm-bar.sell { background: var(--ink); }
-  .pm-bar.buy  { background: #c4c4cb; border: 1px solid #a8a8b1; }
-  .pm-spine { background: var(--ink); height: 15px; }
-  .pm-note { display: flex; gap: 6px; align-items: baseline; margin-top: 9px;
-             padding-top: 7px; border-top: 1px solid var(--rule-2); font-size: var(--t-9); }
-  .pm-note .k { color: var(--ink-3); min-width: 54px; }
-  .pm-axis { display: flex; justify-content: space-between; font-size: var(--t-8);
-             color: var(--ink-3); margin-top: 6px; padding: 0 46px; }
+/* ── chart ──────────────────────────────────────────────────────────────── */
 
-  /* ── the decision feed: the spine ─────────────────────────────────────── */
+.ivs { display: flex; gap: 1px; margin-left: 4px; }
+.iv { font: inherit; font-size: var(--t-9); padding: 1px 6px; cursor: pointer;
+      border: 1px solid transparent; background: none; color: var(--ink-3); }
+.iv:hover { color: var(--ink); }
+.iv.on { background: var(--ink); color: var(--paper); }
 
-  .dec {
-    border-bottom: 1px solid var(--rule); padding: 9px 10px 10px;
-    cursor: pointer; background: none; border-left: none; border-right: none;
-    border-top: none; width: 100%; text-align: left; font: inherit; color: inherit;
-    display: block;
-  }
-  .dec:hover { background: var(--wash); }
-  .dec[aria-current="true"] { background: var(--wash); box-shadow: inset 3px 0 0 var(--ink); }
+.chartwrap { display: grid; grid-template-rows: auto minmax(0,1fr); height: 100%; }
+.ohlc { display: flex; gap: 6px; align-items: baseline; padding: 3px 9px;
+        font-size: var(--t-9); border-bottom: 1px solid var(--rule-2); }
+.ohlc span + span { margin-right: 4px; }
+.canvaswrap { position: relative; overflow: hidden; }
+.chartload { position: absolute; inset: 0; display: grid; place-items: center;
+             font-size: var(--t-10); }
+canvas { display: block; }
 
-  .dec-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
-  .dec-top .sym { font-size: var(--t-12); }
-  .dec-top .sp { flex: 1; }
+/* ── pain map ───────────────────────────────────────────────────────────── */
 
-  /*
-   * The chain reads top to bottom as a sequence, not across as four fields.
-   * The connector is the point: the eye should travel, because the order is the
-   * evidence that she reasoned rather than guessed.
-   */
-  .chain { display: grid; gap: 0; }
-  .link { display: grid; grid-template-columns: 14px minmax(0,1fr); gap: 7px; }
-  .link .rail { display: grid; justify-items: center; }
-  .link .node { width: 5px; height: 5px; background: var(--ink); margin-top: 4px; }
-  .link .wire { width: 1px; background: var(--rule); flex: 1; min-height: 12px; justify-self: center; }
-  .link:last-child .wire { display: none; }
-  .link .txt { padding-bottom: 9px; }
-  .link .k { font-size: var(--t-8); color: var(--ink-3); letter-spacing: .05em; }
-  .link .v { font-size: var(--t-11); margin-top: 2px; }
-  .link.terminal .node { width: 7px; height: 7px; margin-top: 3px; }
-  .link.terminal .v { font-size: var(--t-12); }
+.pm { padding: 8px 10px 11px; }
+.pm-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end;
+           font-size: var(--t-9); margin-bottom: 9px; gap: 8px; }
+.pm-head .r { text-align: right; }
+.pm-head .c { text-align: center; border: 1px solid var(--ink); padding: 2px 8px; }
+.pm-row { display: grid; grid-template-columns: 52px 1fr 5px 1fr 52px;
+          align-items: center; gap: 5px; font-size: var(--t-9); margin-bottom: 4px; }
+.pm-l { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
+.pm-r { display: flex; align-items: center; gap: 5px; }
+.pm-bar { height: 12px; }
+/* Below spot = longs liquidating = forced SELLING. Solid.
+   Above spot = shorts liquidating = forced BUYING. Open.
+   Direction survives without colour. */
+.pm-bar.sell { background: var(--ink); }
+.pm-bar.buy  { background: #c4c4cb; border: 1px solid #a8a8b1; }
+.pm-spine { background: var(--ink); height: 16px; }
+.pm-note { display: flex; gap: 7px; align-items: baseline; margin-top: 9px;
+           padding-top: 8px; border-top: 1px solid var(--rule-2); font-size: var(--t-9); }
+.pm-note .k { color: var(--ink-3); min-width: 58px; }
 
-  /* Confidence belongs to the action, directly beneath it. */
-  .conf { margin-top: 5px; display: flex; align-items: center; gap: 7px; }
-  .conf .bar { flex: 1; max-width: 92px; height: 4px; background: var(--rule-2); position: relative; }
-  .conf .bar i { position: absolute; inset: 0; background: var(--ink); display: block; }
-  .conf .n { font-size: var(--t-11); }
+/* ── decision feed ──────────────────────────────────────────────────────── */
 
-  /* Every decision carries its record. It is the differentiator, so it is
-     never a detail that can be overlooked. */
-  .rec { margin-top: 9px; padding-top: 7px; border-top: 1px solid var(--rule-2);
-         display: flex; gap: 14px; font-size: var(--t-8); flex-wrap: wrap; }
-  .rec .k { color: var(--ink-3); }
-  .rec .v { margin-left: 4px; }
-  .tag { border: 1px solid var(--rule); padding: 0 4px; font-size: var(--t-8); }
+/* One decision per row: identity, the chain, conviction, then the record. */
+.dec {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 118px;
+  gap: 0 12px;
+  border-bottom: 1px solid var(--rule); padding: 9px 11px 8px;
+  cursor: pointer; background: none; border-left: none; border-right: none;
+  border-top: none; width: 100%; text-align: left; font: inherit; color: inherit;
+}
+.dec:hover { background: var(--wash); }
+.dec[aria-current="true"] { background: var(--wash); box-shadow: inset 3px 0 0 var(--ink); }
 
-  /* ── expanded decision ────────────────────────────────────────────────── */
+.dec-id .t { font-size: var(--t-12); }
+.dec-id .fade { font-size: var(--t-9); }
+.dec-id .sym { font-size: var(--t-11); margin-top: 3px; }
 
-  .exp-hero { padding: 11px 12px; border-bottom: 1px solid var(--rule); }
-  .exp-hero .sym { font-size: var(--t-18); }
-  .exp-hero .meta { display: flex; gap: 12px; margin-top: 3px; font-size: var(--t-9); }
-  .exp-step { display: grid; grid-template-columns: 14px minmax(0,1fr);
-              gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--rule-2); }
-  .exp-step .rail { display: grid; justify-items: center; }
-  .exp-step .node { width: 5px; height: 5px; background: var(--ink); margin-top: 4px; }
-  .exp-step .wire { width: 1px; background: var(--rule); flex: 1; min-height: 14px; }
-  .exp-step:last-of-type .wire { display: none; }
-  .exp-step .k { font-size: var(--t-8); color: var(--ink-3); letter-spacing: .05em; }
-  .exp-step .v { font-size: var(--t-12); margin: 3px 0 5px; }
-  .exp-step .why { font-size: var(--t-10); line-height: 1.55; color: var(--ink-2); }
-  .exp-foot { padding: 10px 12px; }
-  .exp-kv { display: flex; justify-content: space-between; padding: 2.5px 0; font-size: var(--t-10); }
+/* ── the chain ──────────────────────────────────────────────────────────── */
 
-  /* ── account ──────────────────────────────────────────────────────────── */
+/* Across: four numbered steps joined by a rule through the markers. The number
+   carries the sequence, which is the whole evidentiary claim of the schema —
+   she may not name an action before committing to the three premises. */
+.chain.across { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.chain.across .link { padding-right: 10px; }
+.chain.across .mark { display: flex; align-items: center; gap: 6px; }
+.chain.across .num {
+  width: 11px; height: 11px; flex: none; display: grid; place-items: center;
+  border: 1px solid var(--ink); border-radius: 50%; font-size: 7px;
+}
+.chain.across .k { font-size: var(--t-9); color: var(--ink-3); white-space: nowrap;
+                   overflow: hidden; text-overflow: ellipsis; }
+/* The connector runs from the end of one label to the next marker, drawn in
+   the gap rather than behind the text — a line masked by an opaque label
+   background breaks the moment the row is hovered or selected. */
+.chain.across .mark::after {
+  content: ""; flex: 1 1 8px; min-width: 6px; height: 1px; background: var(--rule);
+}
+.chain.across .link:last-child .mark::after { display: none; }
+.chain.across .v { font-size: var(--t-11); margin-top: 4px; padding-left: 17px; }
+.chain.across .link.terminal .v { font-size: var(--t-12); }
 
-  .kv { display: flex; justify-content: space-between; gap: 10px; padding: 2.5px 9px;
-        font-size: var(--t-10); }
-  .limit { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
-           background: var(--rule); border-top: 1px solid var(--rule);
-           border-bottom: 1px solid var(--rule); margin-top: 6px; }
-  .limit > div { background: var(--paper); padding: 5px 8px; }
-  .limit .k { font-size: var(--t-8); color: var(--ink-3); }
-  .limit .v { font-size: var(--t-12); margin-top: 2px; }
-  .meter { height: 12px; border: 1px solid var(--ink); position: relative; margin: 7px 9px 0; }
-  .meter i { position: absolute; inset: 0; display: block; border-right: 1px solid var(--ink);
-             background: repeating-linear-gradient(45deg, var(--ink) 0 2px, transparent 2px 5px); }
-  .meter-ends { display: flex; justify-content: space-between; padding: 2px 9px 7px;
-                font-size: var(--t-8); color: var(--ink-3); }
+/* Down: the same chain in a narrow panel, where a horizontal layout would wrap
+   and stop being a chain. */
+.chain.down .link { padding-bottom: 9px; }
+.chain.down .mark { display: flex; align-items: center; gap: 7px; }
+.chain.down .num { width: 13px; height: 13px; flex: none; display: grid; place-items: center;
+                   border: 1px solid var(--ink); border-radius: 50%; font-size: 8px; }
+.chain.down .k { font-size: var(--t-9); color: var(--ink-3); }
+.chain.down .v { font-size: var(--t-12); margin-top: 3px; padding-left: 20px; }
 
-  table { width: 100%; border-collapse: collapse; font-size: var(--t-9); }
-  th { text-align: left; font-weight: 400; color: var(--ink-3); padding: 3px 6px;
-       border-bottom: 1px solid var(--rule); white-space: nowrap; font-size: var(--t-8); }
-  td { padding: 3px 6px; white-space: nowrap; border-bottom: 1px solid var(--rule-2); }
-  th.r, td.r { text-align: right; }
+.dec-conv { display: grid; align-content: start; gap: 2px; }
+.dec-conv .k { font-size: var(--t-8); color: var(--ink-3); letter-spacing: .05em; }
+.dec-conv .n { font-size: var(--t-15); }
+.dec-conv .bar { height: 4px; background: var(--rule-2); position: relative; display: block; }
+.dec-conv .bar i { position: absolute; inset: 0 auto 0 0; background: var(--ink); display: block; }
 
-  .empty { padding: 20px 10px; text-align: center; font-size: var(--t-10); }
-  .empty div + div { margin-top: 4px; }
-  :focus-visible { outline: 1px solid var(--ink); outline-offset: -1px; }
+.rec { grid-column: 1 / -1; margin-top: 8px; padding-top: 7px;
+       border-top: 1px solid var(--rule-2);
+       display: flex; gap: 16px; font-size: var(--t-8); flex-wrap: wrap; align-items: baseline; }
+.rec .k { color: var(--ink-3); }
+.rec .v { margin-left: 5px; }
+.tag { border: 1px solid var(--rule); padding: 0 5px; font-size: var(--t-8); }
+
+/* ── expanded decision ──────────────────────────────────────────────────── */
+
+.exp-hero { padding: 11px 13px; border-bottom: 1px solid var(--rule); }
+.exp-hero .sym { font-size: var(--t-20); }
+.exp-hero .meta { display: flex; gap: 14px; margin-top: 4px; font-size: var(--t-10); }
+.exp-step { display: grid; grid-template-columns: 15px minmax(0,1fr);
+            gap: 9px; padding: 9px 13px; border-bottom: 1px solid var(--rule-2); }
+.exp-step .num { width: 13px; height: 13px; display: grid; place-items: center;
+                 border: 1px solid var(--ink); border-radius: 50%; font-size: 8px;
+                 margin-top: 1px; }
+.exp-step .k { font-size: var(--t-9); color: var(--ink-3); letter-spacing: .04em; }
+.exp-step .v { font-size: var(--t-12); margin: 3px 0 0; }
+.exp-step .gloss { font-size: var(--t-9); color: var(--ink-2); margin-top: 2px; }
+.exp-why { padding: 10px 13px; border-bottom: 1px solid var(--rule-2); }
+.exp-why .k { font-size: var(--t-9); color: var(--ink-3); letter-spacing: .04em; }
+.why { font-size: var(--t-10); line-height: 1.6; color: var(--ink-2); margin-top: 5px; }
+.exp-foot { padding: 10px 13px; }
+.exp-kv { display: flex; justify-content: space-between; gap: 12px;
+          padding: 3px 0; font-size: var(--t-10); }
+.exp-kv.last { margin-top: 6px; padding-top: 7px; border-top: 1px solid var(--rule-2); }
+
+/* ── account ────────────────────────────────────────────────────────────── */
+
+.kv { display: flex; justify-content: space-between; gap: 10px; padding: 3px 10px;
+      font-size: var(--t-11); }
+/* The daily limit as used / remaining / maximum rather than one percentage:
+   the discipline is the point, so the room left before the halt is a figure. */
+.limit { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+         background: var(--rule); border-top: 1px solid var(--rule);
+         border-bottom: 1px solid var(--rule); margin-top: 7px; }
+.limit > div { background: var(--paper); padding: 5px 9px; }
+.limit .k { font-size: var(--t-8); color: var(--ink-3); }
+.limit .v { font-size: var(--t-13); margin-top: 2px; }
+.meter { height: 13px; border: 1px solid var(--ink); position: relative; margin: 8px 10px 0; }
+.meter i { position: absolute; inset: 0 auto 0 0; display: block;
+           border-right: 1px solid var(--ink);
+           background: repeating-linear-gradient(45deg, var(--ink) 0 2px, transparent 2px 5px); }
+.meter-ends { display: flex; justify-content: space-between; padding: 3px 10px 8px;
+              font-size: var(--t-8); color: var(--ink-3); }
+
+table { width: 100%; border-collapse: collapse; font-size: var(--t-10); }
+th { text-align: left; font-weight: 400; color: var(--ink-3); padding: 3px 8px;
+     border-bottom: 1px solid var(--rule); white-space: nowrap; font-size: var(--t-8); }
+td { padding: 4px 8px; white-space: nowrap; border-bottom: 1px solid var(--rule-2); }
+th.r, td.r { text-align: right; }
+
+/* Empty states say what will appear and when — never "no data". */
+.empty { padding: 26px 18px; text-align: center; font-size: var(--t-10);
+         max-width: 420px; margin: 0 auto; }
+.empty div + div { margin-top: 5px; line-height: 1.6; }
+
+:focus-visible { outline: 1px solid var(--ink); outline-offset: -1px; }

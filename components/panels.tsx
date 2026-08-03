@@ -107,7 +107,7 @@ export function PainMapPanel({ map }: { map: PainMap | null }) {
  * hard floor exists and how much room is left before it.
  */
 export function AccountPanel({ wallet }: { wallet: WalletState | null }) {
-  if (!wallet) return <div className="pad fade" style={{ padding: 10 }}>Account state unavailable.</div>;
+  if (!wallet) return <div className="fade" style={{ padding: 10 }}>Account state unavailable.</div>;
 
   const used = wallet.dailyLossUsed * 100;
   const max = 7;
@@ -157,14 +157,15 @@ export function PositionsPanel({ wallet }: { wallet: WalletState | null }) {
   return (
     <table>
       <thead><tr>
-        <th>SYM</th><th>SIDE</th><th className="r">ENTRY</th>
-        <th className="r">STOP</th><th className="r">UPNL</th>
+        <th>SYM</th><th>SIDE</th><th className="r">SIZE</th>
+        <th className="r">ENTRY</th><th className="r">STOP</th><th className="r">UPNL</th>
       </tr></thead>
       <tbody>
         {rows.map((p) => (
           <tr key={p.asset}>
             <td>{p.asset}</td>
-            <td>{p.side === "long" ? "LNG" : "SHT"}</td>
+            <td>{p.side === "long" ? "LONG" : "SHORT"}</td>
+            <td className="r">{p.size}</td>
             <td className="r">{p.entryPx}</td>
             <td className="r">{p.stopPx ?? "—"}</td>
             <td className={`r ${p.unrealizedPnlUsd >= 0 ? "up" : "dn"}`}>
@@ -193,8 +194,8 @@ export function BookPanel({ asset }: { asset: string }) {
         .then((d: { levels?: { px: string; sz: string }[][] }) => {
           if (!alive || !d.levels) return;
           setBook({
-            bids: (d.levels[0] ?? []).slice(0, 7).map((l) => [Number(l.px), Number(l.sz)]),
-            asks: (d.levels[1] ?? []).slice(0, 7).map((l) => [Number(l.px), Number(l.sz)]),
+            bids: (d.levels[0] ?? []).slice(0, 11).map((l) => [Number(l.px), Number(l.sz)]),
+            asks: (d.levels[1] ?? []).slice(0, 11).map((l) => [Number(l.px), Number(l.sz)]),
           });
         })
         .catch(() => {});
