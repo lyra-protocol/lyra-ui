@@ -28,7 +28,7 @@ export type Interval = (typeof INTERVALS)[number];
 export function Chart({
   asset,
   markers = [],
-  height = 340,
+  height,
 }: {
   asset: string;
   markers?: Marker[];
@@ -86,7 +86,9 @@ export function Chart({
 
     const dpr = window.devicePixelRatio || 1;
     const w = wrap.clientWidth;
-    const h = height;
+    // Measured from the region it sits in, so the chart fills whatever the
+    // fixed layout gives it rather than imposing a height on the shell.
+    const h = wrap.clientHeight || 260;
     canvas.width = w * dpr;
     canvas.height = h * dpr;
     canvas.style.width = `${w}px`;
@@ -162,7 +164,7 @@ export function Chart({
   }, [candles, bounds, height, markers]);
 
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <div
         style={{
           display: "flex",
@@ -197,7 +199,7 @@ export function Chart({
           ))}
         </div>
       </div>
-      <div ref={wrapRef} style={{ position: "relative", height }}>
+      <div ref={wrapRef} style={{ position: "relative", height: height ?? "100%", flex: 1, minHeight: 0 }}>
         {loading && (
           <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
             <span className="lbl">loading candles</span>

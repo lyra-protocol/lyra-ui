@@ -1,177 +1,227 @@
 @import "tailwindcss";
 
-/*
- * The system. See DESIGN.md for why each of these exists.
- *
- * Six type sizes, one 4px spacing scale, two colours that carry meaning. Every
- * value a component needs lives here, so the tenth component cannot contradict
- * the first.
- */
-:root {
-  /* Surface. Bright white, near-black — no greys pretending to be black. */
-  --paper:   #ffffff;
-  --ink:     #09090b;
-  --ink-2:   #52525b;   /* supporting prose */
-  --ink-3:   #a1a1aa;   /* labels, units, the quietest legible tier */
-  --rule:    #e4e4e7;   /* structural hairlines */
-  --rule-2:  #f4f4f5;   /* fills and inactive tracks */
+  /*
+   * Lyra terminal — read-only.
+   *
+   * The spine of the screen is the decision feed, not the chart. Lyra does not
+   * sell price data; she sells a decision process that is committed to a
+   * permanent record before the outcome is known. The layout puts that in the
+   * centre and subordinates everything else to it.
+   *
+   * Single committed theme. Monospace throughout so labels and figures share one
+   * grid. Colour carries two meanings only — PnL direction and liveness.
+   * Structure is 1px rules and nothing else.
+   */
+  :root {
+    --paper:  #ffffff;
+    --ink:    #0a0a0b;
+    --ink-2:  #55555d;
+    --ink-3:  #8e8e97;
+    --rule:   #d8d8de;
+    --rule-2: #ececef;
+    --wash:   #f7f7f9;
+    --gain:   #0f7a3d;
+    --loss:   #d1352b;
+    --loss-bg:#fdeceb;
+    --live:   #12a150;
 
-  /* Colour carries exactly two meanings. Nothing else is ever coloured. */
-  --gain:    #15803d;
-  --loss:    #b91c1c;
-  --live:    #16a34a;
+    --t-8:  8px;  --t-9:  9px;  --t-10: 10px;
+    --t-11: 11px; --t-12: 12px; --t-14: 14px; --t-18: 18px;
+  }
 
-  /* Type scale — six steps, nothing between them. */
-  --t-micro: 10px;
-  --t-body:  12px;
-  --t-data:  13px;
-  --t-emph:  15px;
-  --t-fig:   20px;
-  --t-hero:  30px;
+  * { box-sizing: border-box; }
 
-  /* Spacing — 4px base. */
-  --s1: 4px;  --s2: 8px;  --s3: 12px;
-  --s4: 16px; --s6: 24px; --s8: 32px; --s12: 48px;
-}
+  html, body {
+    height: 100%; margin: 0; overflow: hidden;
+    background: var(--paper); color: var(--ink);
+  }
+  body {
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    font-size: var(--t-11); line-height: 1.35;
+    font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;
+    -webkit-font-smoothing: antialiased;
+  }
 
-* { box-sizing: border-box; }
+  .app {
+    height: 100dvh; display: grid;
+    grid-template-rows: 32px 44px minmax(0, 1fr);
+    border: 1px solid var(--rule); overflow: hidden;
+  }
+  .app * { min-height: 0; min-width: 0; }
 
-html, body {
-  margin: 0; padding: 0;
-  background: var(--paper);
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-  -webkit-font-smoothing: antialiased;
-}
+  /* ── top bar ──────────────────────────────────────────────────────────── */
 
-body {
-  font-family: ui-sans-serif, -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
-  font-size: var(--t-body);
-  line-height: 1.5;
-  letter-spacing: -0.005em;
-}
+  .bar {
+    display: flex; align-items: center; gap: 16px; padding: 0 10px;
+    border-bottom: 1px solid var(--rule);
+    font-size: var(--t-10); letter-spacing: .04em; white-space: nowrap; overflow: hidden;
+  }
+  .bar .sp { flex: 1; }
+  .brand { font-weight: 700; letter-spacing: .11em; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--live);
+         display: inline-block; margin-right: 5px; vertical-align: 1px; }
+  @keyframes blink { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
+  .dot { animation: blink 2.2s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .dot { animation: none } }
 
-a { color: inherit; text-decoration: none; }
-::selection { background: var(--ink); color: var(--paper); }
-:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  /* Freshness readouts. Bloomberg constantly says how old the data is. */
+  .fresh { display: flex; gap: 4px; align-items: baseline; }
+  .fresh b { font-weight: 400; }
 
-/* ── type ──────────────────────────────────────────────────────────────── */
+  /* ── markets strip ────────────────────────────────────────────────────── */
 
-.mono {
-  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-  letter-spacing: -0.01em;
-}
+  .mkts { display: flex; border-bottom: 1px solid var(--rule); overflow: hidden; }
+  .mkt { flex: 1 1 0; padding: 3px 8px; border-right: 1px solid var(--rule);
+         display: flex; flex-direction: column; justify-content: center; }
+  .mkt:last-child { border-right: none; }
+  .mkt.on { background: var(--wash); box-shadow: inset 0 -2px 0 var(--ink); }
+  .mkt .s { font-size: var(--t-10); }
+  .mkt .n { display: flex; gap: 7px; align-items: baseline; font-size: var(--t-10); margin-top: 1px; }
 
-/* The only label style. Uppercase and tracked so it reads as a label at 10px. */
-.lbl {
-  font-size: var(--t-micro);
-  font-weight: 500;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
+  /* ── the four columns ─────────────────────────────────────────────────── */
 
-.fig  { font-size: var(--t-fig);  line-height: 1.15; letter-spacing: -0.02em; }
-.hero { font-size: var(--t-hero); line-height: 1.05; letter-spacing: -0.03em; }
-.emph { font-size: var(--t-emph); font-weight: 500; }
-.data { font-size: var(--t-data); }
-.dim  { color: var(--ink-2); }
-.dimmer { color: var(--ink-3); }
-.gain { color: var(--gain); }
-.loss { color: var(--loss); }
+  .body {
+    display: grid;
+    grid-template-columns: minmax(240px, 0.85fr) minmax(300px, 1.05fr) minmax(320px, 1.15fr) 268px;
+    overflow: hidden;
+  }
+  .col { border-right: 1px solid var(--rule); display: grid; overflow: hidden; }
+  .col:last-child { border-right: none; }
+  /* Chart shrunk ~30%; the space goes to the pain map, which is the edge. */
+  .col-left { grid-template-rows: minmax(0, 0.78fr) minmax(0, 1fr); }
+  .col-far  { grid-template-rows: auto auto minmax(0, 1fr); }
 
-/* ── structure ─────────────────────────────────────────────────────────── */
+  .panel { display: grid; grid-template-rows: auto minmax(0,1fr);
+           overflow: hidden; border-bottom: 1px solid var(--rule); }
+  .panel:last-child { border-bottom: none; }
 
-.head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: var(--s3);
-  padding: var(--s2) var(--s4);
-  border-bottom: 1px solid var(--rule);
-  min-height: 34px;
-}
+  .ph { display: flex; align-items: center; gap: 8px; padding: 4px 8px;
+        border-bottom: 1px solid var(--rule); font-size: var(--t-9);
+        letter-spacing: .05em; white-space: nowrap; overflow: hidden; }
+  .ph .sp { flex: 1; }
+  .ph .age { color: var(--ink-3); font-size: var(--t-8); }
 
-.pad { padding: var(--s4); }
+  .pb { overflow: auto; scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
+  .pb::-webkit-scrollbar { width: 6px; height: 6px; }
+  .pb::-webkit-scrollbar-thumb { background: var(--rule); }
 
-.row {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: var(--s3);
-}
+  .up { color: var(--gain); } .dn { color: var(--loss); }
+  .mut { color: var(--ink-2); } .fade { color: var(--ink-3); }
 
-.stack { display: grid; gap: var(--s2); }
+  /* ── chart ────────────────────────────────────────────────────────────── */
 
-/* Hairline track used for every proportion bar on the page. */
-.track { height: 3px; background: var(--rule-2); position: relative; }
-.track > i { position: absolute; inset: 0; background: var(--ink); display: block; }
+  .chart { display: grid; grid-template-rows: minmax(0,1fr) 52px; }
+  canvas { display: block; width: 100%; height: 100%; }
 
-/* ── the decision card: the reason this file exists ────────────────────── */
+  /* ── pain map — enlarged, annotated ───────────────────────────────────── */
 
-.decision { border-bottom: 1px solid var(--rule); padding: var(--s4); }
-.decision:last-child { border-bottom: none; }
+  .pm { padding: 7px 9px 10px; }
+  .pm-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end;
+             font-size: var(--t-9); margin-bottom: 8px; gap: 8px; }
+  .pm-head .r { text-align: right; }
+  .pm-head .c { text-align: center; border: 1px solid var(--ink); padding: 2px 7px; }
+  .pm-row { display: grid; grid-template-columns: 46px 1fr 5px 1fr 46px;
+            align-items: center; gap: 4px; font-size: var(--t-9); margin-bottom: 4px; }
+  .pm-l { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+  .pm-r { display: flex; align-items: center; gap: 4px; }
+  .pm-bar { height: 11px; }
+  /* Below spot = longs liquidating = forced SELLING. Solid.
+     Above spot = shorts liquidating = forced BUYING. Open.
+     Direction survives without colour. */
+  .pm-bar.sell { background: var(--ink); }
+  .pm-bar.buy  { background: #c4c4cb; border: 1px solid #a8a8b1; }
+  .pm-spine { background: var(--ink); height: 15px; }
+  .pm-note { display: flex; gap: 6px; align-items: baseline; margin-top: 9px;
+             padding-top: 7px; border-top: 1px solid var(--rule-2); font-size: var(--t-9); }
+  .pm-note .k { color: var(--ink-3); min-width: 54px; }
+  .pm-axis { display: flex; justify-content: space-between; font-size: var(--t-8);
+             color: var(--ink-3); margin-top: 6px; padding: 0 46px; }
 
-/* Layer 1 — the call. */
-.decision-call {
-  display: flex; align-items: baseline; gap: var(--s3);
-  flex-wrap: wrap; margin-bottom: var(--s3);
-}
+  /* ── the decision feed: the spine ─────────────────────────────────────── */
 
-/* Layer 2 — the commitment chain. The order is the evidence, so it is numbered. */
-.chain { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
-.chain-step {
-  display: grid;
-  grid-template-columns: 22px 116px 1fr;
-  gap: var(--s3);
-  align-items: baseline;
-  background: var(--paper);
-  padding: var(--s2) var(--s3);
-}
-.chain-n {
-  font-size: var(--t-micro);
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
+  .dec {
+    border-bottom: 1px solid var(--rule); padding: 9px 10px 10px;
+    cursor: pointer; background: none; border-left: none; border-right: none;
+    border-top: none; width: 100%; text-align: left; font: inherit; color: inherit;
+    display: block;
+  }
+  .dec:hover { background: var(--wash); }
+  .dec[aria-current="true"] { background: var(--wash); box-shadow: inset 3px 0 0 var(--ink); }
 
-/* Layer 3 — folded by default. */
-.disclose {
-  margin-top: var(--s3);
-  font-size: var(--t-micro);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  background: none; border: none; padding: 0;
-  cursor: pointer; font-family: inherit;
-}
-.disclose:hover { color: var(--ink); }
+  .dec-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .dec-top .sym { font-size: var(--t-12); }
+  .dec-top .sp { flex: 1; }
 
-/* A cited observation. Looks like a citation because it is one. */
-.cite {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: var(--t-micro);
-  padding: 2px 6px;
-  border: 1px solid var(--rule);
-  color: var(--ink-2);
-  white-space: nowrap;
-}
+  /*
+   * The chain reads top to bottom as a sequence, not across as four fields.
+   * The connector is the point: the eye should travel, because the order is the
+   * evidence that she reasoned rather than guessed.
+   */
+  .chain { display: grid; gap: 0; }
+  .link { display: grid; grid-template-columns: 14px minmax(0,1fr); gap: 7px; }
+  .link .rail { display: grid; justify-items: center; }
+  .link .node { width: 5px; height: 5px; background: var(--ink); margin-top: 4px; }
+  .link .wire { width: 1px; background: var(--rule); flex: 1; min-height: 12px; justify-self: center; }
+  .link:last-child .wire { display: none; }
+  .link .txt { padding-bottom: 9px; }
+  .link .k { font-size: var(--t-8); color: var(--ink-3); letter-spacing: .05em; }
+  .link .v { font-size: var(--t-11); margin-top: 2px; }
+  .link.terminal .node { width: 7px; height: 7px; margin-top: 3px; }
+  .link.terminal .v { font-size: var(--t-12); }
 
-/* ── motion: one thing only ────────────────────────────────────────────── */
+  /* Confidence belongs to the action, directly beneath it. */
+  .conf { margin-top: 5px; display: flex; align-items: center; gap: 7px; }
+  .conf .bar { flex: 1; max-width: 92px; height: 4px; background: var(--rule-2); position: relative; }
+  .conf .bar i { position: absolute; inset: 0; background: var(--ink); display: block; }
+  .conf .n { font-size: var(--t-11); }
 
-@keyframes settle { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
-.settle { animation: settle 240ms cubic-bezier(0.16, 1, 0.3, 1); }
+  /* Every decision carries its record. It is the differentiator, so it is
+     never a detail that can be overlooked. */
+  .rec { margin-top: 9px; padding-top: 7px; border-top: 1px solid var(--rule-2);
+         display: flex; gap: 14px; font-size: var(--t-8); flex-wrap: wrap; }
+  .rec .k { color: var(--ink-3); }
+  .rec .v { margin-left: 4px; }
+  .tag { border: 1px solid var(--rule); padding: 0 4px; font-size: var(--t-8); }
 
-@keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-.breathe { animation: breathe 2.4s ease-in-out infinite; }
+  /* ── expanded decision ────────────────────────────────────────────────── */
 
-@media (prefers-reduced-motion: reduce) {
-  .settle, .breathe { animation: none; }
-  * { transition: none !important; }
-}
+  .exp-hero { padding: 11px 12px; border-bottom: 1px solid var(--rule); }
+  .exp-hero .sym { font-size: var(--t-18); }
+  .exp-hero .meta { display: flex; gap: 12px; margin-top: 3px; font-size: var(--t-9); }
+  .exp-step { display: grid; grid-template-columns: 14px minmax(0,1fr);
+              gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--rule-2); }
+  .exp-step .rail { display: grid; justify-items: center; }
+  .exp-step .node { width: 5px; height: 5px; background: var(--ink); margin-top: 4px; }
+  .exp-step .wire { width: 1px; background: var(--rule); flex: 1; min-height: 14px; }
+  .exp-step:last-of-type .wire { display: none; }
+  .exp-step .k { font-size: var(--t-8); color: var(--ink-3); letter-spacing: .05em; }
+  .exp-step .v { font-size: var(--t-12); margin: 3px 0 5px; }
+  .exp-step .why { font-size: var(--t-10); line-height: 1.55; color: var(--ink-2); }
+  .exp-foot { padding: 10px 12px; }
+  .exp-kv { display: flex; justify-content: space-between; padding: 2.5px 0; font-size: var(--t-10); }
 
-/* ── scroll ────────────────────────────────────────────────────────────── */
+  /* ── account ──────────────────────────────────────────────────────────── */
 
-.scroll-x { overflow-x: auto; }
-.scroll-y { overflow-y: auto; }
-.scroll-x, .scroll-y { scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
-.scroll-x::-webkit-scrollbar, .scroll-y::-webkit-scrollbar { width: 5px; height: 5px; }
-.scroll-x::-webkit-scrollbar-thumb, .scroll-y::-webkit-scrollbar-thumb { background: var(--rule); }
+  .kv { display: flex; justify-content: space-between; gap: 10px; padding: 2.5px 9px;
+        font-size: var(--t-10); }
+  .limit { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+           background: var(--rule); border-top: 1px solid var(--rule);
+           border-bottom: 1px solid var(--rule); margin-top: 6px; }
+  .limit > div { background: var(--paper); padding: 5px 8px; }
+  .limit .k { font-size: var(--t-8); color: var(--ink-3); }
+  .limit .v { font-size: var(--t-12); margin-top: 2px; }
+  .meter { height: 12px; border: 1px solid var(--ink); position: relative; margin: 7px 9px 0; }
+  .meter i { position: absolute; inset: 0; display: block; border-right: 1px solid var(--ink);
+             background: repeating-linear-gradient(45deg, var(--ink) 0 2px, transparent 2px 5px); }
+  .meter-ends { display: flex; justify-content: space-between; padding: 2px 9px 7px;
+                font-size: var(--t-8); color: var(--ink-3); }
+
+  table { width: 100%; border-collapse: collapse; font-size: var(--t-9); }
+  th { text-align: left; font-weight: 400; color: var(--ink-3); padding: 3px 6px;
+       border-bottom: 1px solid var(--rule); white-space: nowrap; font-size: var(--t-8); }
+  td { padding: 3px 6px; white-space: nowrap; border-bottom: 1px solid var(--rule-2); }
+  th.r, td.r { text-align: right; }
+
+  .empty { padding: 20px 10px; text-align: center; font-size: var(--t-10); }
+  .empty div + div { margin-top: 4px; }
+  :focus-visible { outline: 1px solid var(--ink); outline-offset: -1px; }

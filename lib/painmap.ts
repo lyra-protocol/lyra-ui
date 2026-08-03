@@ -34,9 +34,7 @@ export type PainMap = {
   coverage: { fraction: number | null; staleCount: number };
 };
 
-export type ActivityResponse = {
-  available: boolean;
-  decisions: {
+export type Decision = {
     id: string;
     at: number;
     asset: string;
@@ -46,8 +44,12 @@ export type ActivityResponse = {
     forcedOrdersAre: string;
     hypothesis: string;
     reasoning: string;
-    reasoningId: string | null;
-  }[];
+  reasoningId: string | null;
+};
+
+export type ActivityResponse = {
+  available: boolean;
+  decisions: Decision[];
 };
 
 async function get<T>(path: string): Promise<T> {

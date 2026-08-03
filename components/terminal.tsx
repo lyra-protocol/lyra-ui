@@ -2,304 +2,303 @@
 
 import { useEffect, useState } from "react";
 import {
-  UNIVERSE,
-  dayChange,
-  fetchUniverse,
-  formatPx,
-  formatUsd,
-  fundingAnnualPct,
-  type AssetSnapshot,
+  UNIVERSE, dayChange, fetchUniverse, formatPx, fundingAnnualPct, type AssetSnapshot,
 } from "@/lib/venue";
-import { fetchPainMap, type PainMap } from "@/lib/painmap";
-import { Chart, type Marker } from "@/components/chart";
-import { OrderBook } from "@/components/orderbook";
-import { ForcedFlow } from "@/components/forced-flow";
-import { Activity } from "@/components/activity";
-import { Wallet, ReadOnlyBadge } from "@/components/wallet";
+import {
+  fetchActivity, fetchPainMap, fetchWallet,
+  type Decision, type PainMap, type WalletState,
+} from "@/lib/painmap";
+import { Chain, steps } from "@/components/chain";
+import { AccountPanel, Age, BookPanel, PainMapPanel, PositionsPanel } from "@/components/panels";
+import { Chart } from "@/components/chart";
 
 /**
  * The terminal.
  *
- * Laid out like a perpetuals desk — chart centre, book right, account and
- * positions in the rail — with one difference that is stated rather than
- * implied: there is nothing to click. Every panel is observation.
+ * Four columns, and the middle one is the point. Lyra does not sell price data —
+ * she sells a decision process committed to a permanent record before the
+ * outcome is known, so the decision feed is the spine and everything else is
+ * subordinate to it. The chart is deliberately the smallest it can be while
+ * remaining readable.
  *
- * Nothing here is performed. Where a panel has no data it says so and says why.
- * An agent that animates work it is not doing would be a demo, and the whole
- * point of this project is that it is not one.
+ * The page never scrolls. Each panel is its own scroll region, the way an IDE
+ * works, so nothing is found by scrolling away from something else.
+ *
+ * Selecting a decision replaces the pinned inspection panel rather than opening
+ * a modal. Keeping one decision permanently open makes this an inspection tool
+ * instead of a click-driven interface.
  */
 export function Terminal() {
   const [asset, setAsset] = useState("BTC");
-
-  return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <TopBar asset={asset} />
-      <UniverseStrip selected={asset} onSelect={setAsset} />
-
-      <div className="desk">
-        <main style={{ minWidth: 0, borderRight: "1px solid var(--rule)" }}>
-          <ChartWithLevels asset={asset} />
-          <PainPanel asset={asset} />
-          <Activity />
-        </main>
-
-        <aside style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <Wallet />
-          <section style={{ borderBottom: "1px solid var(--rule)" }}>
-            <div className="head">
-              <span className="lbl">order book</span>
-              <span style={{ fontSize: "var(--t-micro)", color: "var(--ink-3)" }}>{asset} · 2s</span>
-            </div>
-            <OrderBook asset={asset} />
-          </section>
-        </aside>
-      </div>
-
-      <style>{`
-        .desk {
-          flex: 1;
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(290px, 340px);
-          border-top: 1px solid var(--rule);
-        }
-        @media (max-width: 940px) {
-          .desk { grid-template-columns: 1fr; }
-          .desk > main { border-right: none !important; }
-        }
-      `}</style>
-    </div>
+  const [assets, setAssets] = useState<AssetSnapshot[]>([]);
+  const [map, setMap] = useState<PainMap | null>(null);
+  const [wallet, setWallet] = useState<WalletState | null>(null);
+  const [decisions, setDecisions] = useState<Decision[]>([]);
+  const [selected, setSelected] = useState(0);
+  const [ages, setAges] = useState<{ mkt: number | null; pm: number | null; acct: number | null }>(
+    { mkt: null, pm: null, acct: null },
   );
-}
+  const [clock, setClock] = useState("");
 
-function TopBar({ asset }: { asset: string }) {
-  const [now, setNow] = useState("");
   useEffect(() => {
-    const tick = () => setNow(new Date().toISOString().slice(11, 19) + "Z");
+    const tick = () => setClock(new Date().toISOString().slice(11, 19) + " UTC");
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
 
-  return (
-    <header
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "0 16px",
-        height: 46,
-        borderBottom: "1px solid var(--rule)",
-        gap: 14,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-        <a href="/" style={{ fontSize: "var(--t-emph)", fontWeight: 600, letterSpacing: "-0.02em" }}>
-          LYRA
-        </a>
-        <span className="lbl">{asset} perpetual</span>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <ReadOnlyBadge />
-        <span className="mono" style={{ fontSize: "var(--t-body)", color: "var(--ink-3)" }}>{now}</span>
-        <a href="/mcp" className="lbl" style={{ color: "var(--ink-2)" }}>mcp</a>
-      </div>
-    </header>
-  );
-}
-
-function UniverseStrip({ selected, onSelect }: { selected: string; onSelect: (a: string) => void }) {
-  const [assets, setAssets] = useState<AssetSnapshot[]>([]);
-
   useEffect(() => {
     let alive = true;
-    const load = () => fetchUniverse().then((a) => alive && setAssets(a)).catch(() => {});
-    void load();
-    const id = setInterval(load, 10_000);
+    const load = () => {
+      const t = performance.now();
+      void fetchUniverse().then((a) => {
+        if (!alive) return;
+        setAssets(a);
+        setAges((p) => ({ ...p, mkt: performance.now() - t }));
+      }).catch(() => {});
+    };
+    load();
+    const id = setInterval(load, 8000);
     return () => { alive = false; clearInterval(id); };
   }, []);
 
-  return (
-    <div className="scroll-x" style={{ display: "flex" }}>
-      {UNIVERSE.map((coin) => {
-        const a = assets.find((x) => x.coin === coin);
-        const chg = a ? dayChange(a) : 0;
-        const active = coin === selected;
-        return (
-          <button
-            key={coin}
-            onClick={() => onSelect(coin)}
-            style={{
-              flex: "1 0 116px",
-              textAlign: "left",
-              padding: "8px 13px",
-              border: "none",
-              borderRight: "1px solid var(--rule)",
-              borderBottom: active ? "2px solid var(--ink)" : "2px solid transparent",
-              background: active ? "var(--rule-2)" : "var(--paper)",
-              cursor: "pointer",
-              font: "inherit",
-              color: "inherit",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ fontSize: "var(--t-micro)", fontWeight: 600 }}>{coin}</span>
-              <span className="mono" style={{ fontSize: "var(--t-micro)", color: "var(--ink-3)" }}>
-                {a ? `${fundingAnnualPct(a) >= 0 ? "+" : ""}${fundingAnnualPct(a).toFixed(0)}%` : ""}
-              </span>
-            </div>
-            <div className="mono" style={{ fontSize: "var(--t-body)", marginTop: 2 }}>
-              {a ? formatPx(a.markPx) : "—"}
-            </div>
-            <div
-              className="mono"
-              style={{
-                fontSize: "var(--t-micro)",
-                color: !a ? "var(--ink-3)" : chg >= 0 ? "var(--gain)" : "var(--loss)",
-              }}
-            >
-              {a ? `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%` : ""}
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/**
- * The chart, with Lyra's own levels drawn on it.
- *
- * The markers are the forced-flow clusters she is watching — not decoration,
- * and not drawn where she has not looked. When she holds a position her entry
- * and stop appear here too.
- */
-function ChartWithLevels({ asset }: { asset: string }) {
-  const [markers, setMarkers] = useState<Marker[]>([]);
-
   useEffect(() => {
     let alive = true;
-    fetchPainMap(asset)
-      .then((m) => {
+    const load = () => {
+      const t = performance.now();
+      void fetchPainMap(asset).then((m) => {
         if (!alive) return;
-        const mid = Number(m.midPx);
-        setMarkers(
-          m.forcedLevels
-            .filter((l) => l.notionalUsd > 500_000)
-            .slice(0, 3)
-            .map((l) => ({
-              px: mid * (1 + l.pctFromMid / 100),
-              label: `${(l.notionalUsd / 1e6).toFixed(1)}M ${l.direction === "forced_buys" ? "buys" : "sells"}`,
-              kind: "cluster" as const,
-            })),
-        );
-      })
-      .catch(() => alive && setMarkers([]));
-    return () => { alive = false; };
-  }, [asset]);
-
-  return (
-    <section style={{ borderBottom: "1px solid var(--rule)" }}>
-      <Chart asset={asset} markers={markers} height={330} />
-      {markers.length > 0 && (
-        <div style={{ padding: "7px 14px", borderTop: "1px solid var(--rule)" }}>
-          <span style={{ fontSize: "var(--t-micro)", color: "var(--ink-3)" }}>
-            Dotted lines are forced-flow clusters — price levels where enumerated positions must
-            close. Not drawn from an indicator; summed from real liquidation prices.
-          </span>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function PainPanel({ asset }: { asset: string }) {
-  const [map, setMap] = useState<PainMap | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    setError(null);
-    const load = () =>
-      fetchPainMap(asset)
-        .then((m) => alive && setMap(m))
-        .catch((e: Error) => alive && setError(e.message));
-    void load();
-    const id = setInterval(load, 20_000);
+        setMap(m);
+        setAges((p) => ({ ...p, pm: performance.now() - t }));
+      }).catch(() => alive && setMap(null));
+    };
+    load();
+    const id = setInterval(load, 15000);
     return () => { alive = false; clearInterval(id); };
   }, [asset]);
 
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      const t = performance.now();
+      void fetchWallet().then((w) => {
+        if (!alive) return;
+        setWallet(w);
+        setAges((p) => ({ ...p, acct: performance.now() - t }));
+      }).catch(() => {});
+      void fetchActivity().then((d) => alive && setDecisions(d.decisions ?? [])).catch(() => {});
+    };
+    load();
+    const id = setInterval(load, 10000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  const current = decisions[selected];
+  const markers = (map?.forcedLevels ?? [])
+    .filter((l) => l.notionalUsd > 500_000)
+    .slice(0, 3)
+    .map((l) => ({
+      px: Number(map!.midPx) * (1 + l.pctFromMid / 100),
+      label: `${(l.notionalUsd / 1e6).toFixed(1)}M ${l.direction === "forced_buys" ? "buys" : "sells"}`,
+      kind: "cluster" as const,
+    }));
+
+  const snap = assets.find((a) => a.coin === asset);
+
   return (
-    <section style={{ borderBottom: "1px solid var(--rule)" }}>
-      <div className="head">
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-          <span className="lbl">pain map</span>
-          <span style={{ fontSize: "var(--t-micro)", color: "var(--ink-3)" }}>
-            positions enumerated from the venue, not estimated
-          </span>
-        </div>
-        {map && (
-          <span className="mono" style={{ fontSize: "var(--t-micro)", color: "var(--ink-3)" }}>
-            {map.positionsEnumerated.toLocaleString()}
-            {map.coverage.fraction !== null && ` · ${(map.coverage.fraction * 100).toFixed(1)}% of OI`}
-          </span>
-        )}
+    <div className="app">
+      {/* ── top bar ────────────────────────────────────────────────── */}
+      <div className="bar">
+        <span className="brand">LYRA TERMINAL</span>
+        <span><span className="dot" />LIVE</span>
+        <span className="mut">PUBLIC · READ-ONLY · EVERY DECISION RECORDED</span>
+        <span className="sp" />
+        <span className="fresh"><span className="fade">MARKET</span><b><Age ms={ages.mkt} /></b></span>
+        <span className="fresh"><span className="fade">ENGINE</span><b>{decisions.length > 0 ? "RUNNING" : "OBSERVING"}</b></span>
+        <span className="fresh"><span className="fade">LEDGER</span><b>PAPER · PENDING</b></span>
+        <span>{clock}</span>
       </div>
 
-      <div style={{ padding: 16 }}>
-        {error ? (
-          <div>
-            <p style={{ margin: 0, fontSize: "var(--t-body)", color: "var(--ink-2)", lineHeight: 1.6, maxWidth: 620 }}>
-              The Pain Map is not reachable right now.
-            </p>
-            <p style={{ margin: "8px 0 0", fontSize: "var(--t-body)", color: "var(--ink-3)", lineHeight: 1.6, maxWidth: 620 }}>
-              Unlike the trade record — which lives on Arweave and needs nobody&rsquo;s permission to
-              verify — this view is reconstructed from a dataset only this project holds.
-              Hyperliquid serves no position history, so it exists only because a collector has been
-              watching continuously.
-            </p>
-          </div>
-        ) : !map ? (
-          <span className="lbl">reading positions</span>
-        ) : (
-          <>
+      {/* ── markets ────────────────────────────────────────────────── */}
+      <div className="mkts">
+        {UNIVERSE.map((coin) => {
+          const a = assets.find((x) => x.coin === coin);
+          const chg = a ? dayChange(a) : 0;
+          return (
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))",
-                gap: 18,
-                marginBottom: 20,
-              }}
+              key={coin}
+              className={`mkt${coin === asset ? " on" : ""}`}
+              onClick={() => setAsset(coin)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && setAsset(coin)}
+              style={{ cursor: "pointer" }}
             >
-              <Metric label="losing side" value={map.losingSide} />
-              <Metric
-                label="crowd unrealised"
-                value={formatUsd(Math.abs(map.aggregateUnrealizedPnlUsd))}
-                tone={map.aggregateUnrealizedPnlUsd >= 0 ? "gain" : "loss"}
-              />
-              <Metric label="mean leverage" value={`${map.meanLeverage.toFixed(1)}x`} />
-              <Metric label="concentration" value={`${(map.concentration * 100).toFixed(0)}%`} />
+              <div className="s">{coin}</div>
+              <div className="n">
+                <span>{a ? formatPx(a.markPx) : "—"}</span>
+                {a && <span className={chg >= 0 ? "up" : "dn"}>{chg >= 0 ? "+" : ""}{chg.toFixed(2)}%</span>}
+                {a && <span className="fade">{fundingAnnualPct(a).toFixed(1)}%</span>}
+              </div>
             </div>
-            <ForcedFlow levels={map.forcedLevels} midPx={map.midPx} />
-          </>
-        )}
+          );
+        })}
       </div>
-    </section>
-  );
-}
 
-function Metric({ label, value, tone }: { label: string; value: string; tone?: "gain" | "loss" }) {
-  return (
-    <div>
-      <div className="lbl">{label}</div>
-      <div
-        className="mono"
-        style={{
-          fontSize: "var(--t-fig)",
-          marginTop: 3,
-          color: tone === "gain" ? "var(--gain)" : tone === "loss" ? "var(--loss)" : "var(--ink)",
-        }}
-      >
-        {value}
+      {/* ── four columns ───────────────────────────────────────────── */}
+      <div className="body">
+
+        <div className="col col-left">
+          <div className="panel">
+            <div className="ph">
+              <span>{asset}-PERP · 15m</span>
+              <span className="sp" />
+              {snap && <span className={dayChange(snap) >= 0 ? "up" : "dn"}>
+                {dayChange(snap) >= 0 ? "+" : ""}{dayChange(snap).toFixed(2)}%
+              </span>}
+            </div>
+            <div className="pb chart"><Chart asset={asset} markers={markers} /></div>
+          </div>
+
+          <div className="panel">
+            <div className="ph">
+              <span>PAIN MAP · ENUMERATED LIQUIDATIONS</span>
+              <span className="sp" />
+              <Age ms={ages.pm} />
+            </div>
+            <div className="pb"><PainMapPanel map={map} /></div>
+          </div>
+        </div>
+
+        {/* the spine */}
+        <div className="col">
+          <div className="panel">
+            <div className="ph">
+              <span>DECISION FEED</span>
+              <span className="sp" />
+              <span className="fade">EVERY CONSULTATION · INCLUDING HOLDS</span>
+            </div>
+            <div className="pb">
+              {decisions.length === 0 ? (
+                <div className="empty">
+                  <div className="mut">No decisions in this window.</div>
+                  <div className="fade">
+                    She consults the model only when positioning shifts materially or price
+                    approaches a forced-flow cluster.
+                  </div>
+                </div>
+              ) : (
+                decisions.map((d, i) => (
+                  <button
+                    key={d.id}
+                    className="dec"
+                    aria-current={i === selected}
+                    onClick={() => setSelected(i)}
+                  >
+                    <div className="dec-top">
+                      <span className="sym">{d.asset}</span>
+                      <span className="sp" />
+                      <span className="fade">{new Date(d.at).toISOString().slice(11, 19)}</span>
+                    </div>
+                    <Chain decision={d} />
+                    <div className="rec">
+                      <span><span className="k">COMMITTED</span>
+                        <span className="v">{new Date(d.at).toISOString().slice(11, 19)} UTC</span></span>
+                      <span><span className="k">RECORD</span>
+                        <span className="v">{d.reasoningId ?? "—"}</span></span>
+                      <span className="tag">
+                        {d.reasoningId?.startsWith("local:") ? "PAPER · PENDING" : "ON CHAIN"}
+                      </span>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* pinned inspection */}
+        <div className="col">
+          <div className="panel">
+            <div className="ph">
+              <span>SELECTED DECISION</span>
+              <span className="sp" />
+              <span className="fade">{current?.reasoningId ?? "—"}</span>
+            </div>
+            <div className="pb">
+              {!current ? (
+                <div className="empty">
+                  <div className="mut">Nothing selected.</div>
+                  <div className="fade">
+                    Choosing a decision in the feed opens it here. It stays open — this is an
+                    inspection panel, not a dialog.
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="exp-hero">
+                    <div className="sym">{current.asset}</div>
+                    <div className="meta">
+                      <span className="fade">{new Date(current.at).toISOString().slice(0, 19).replace("T", " ")} UTC</span>
+                      <span>{current.action.replace(/_/g, " ").toUpperCase()}</span>
+                      <span className="fade">confidence {(current.conviction * 100).toFixed(0)}%</span>
+                    </div>
+                  </div>
+
+                  {steps(current).map((s) => (
+                    <div className="exp-step" key={s.k}>
+                      <span className="rail"><span className="node" /><span className="wire" /></span>
+                      <span>
+                        <span className="k">{s.k}</span>
+                        <div className="v">{s.v}</div>
+                      </span>
+                    </div>
+                  ))}
+
+                  <div className="exp-step" style={{ gridTemplateColumns: "1fr" }}>
+                    <span>
+                      <span className="k">
+                        {current.action === "hold" ? "WHY NOT TRADE" : "REASONING"}
+                      </span>
+                      <div className="why" style={{ marginTop: 4 }}>{current.reasoning}</div>
+                    </span>
+                  </div>
+
+                  <div className="exp-foot">
+                    <div className="exp-kv"><span className="fade">Committed</span>
+                      <span>{new Date(current.at).toISOString().slice(0, 19).replace("T", " ")} UTC</span></div>
+                    <div className="exp-kv"><span className="fade">Record</span>
+                      <span>{current.reasoningId ?? "—"}</span></div>
+                    <div className="exp-kv"><span className="fade">Ledger</span>
+                      <span>{current.reasoningId?.startsWith("local:") ? "Pending" : "Committed"}</span></div>
+                    <div className="exp-kv"><span className="fade">Status</span>
+                      <span>{current.reasoningId?.startsWith("local:") ? "Paper trading" : "Live"}</span></div>
+                    <div className="exp-kv" style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--rule-2)" }}>
+                      <span className="fade">Written before outcome</span><span>Yes</span></div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* account, positions, book */}
+        <div className="col col-far">
+          <div className="panel">
+            <div className="ph"><span>ACCOUNT</span><span className="sp" /><Age ms={ages.acct} /></div>
+            <div className="pb"><AccountPanel wallet={wallet} /></div>
+          </div>
+          <div className="panel">
+            <div className="ph"><span>POSITIONS</span><span className="sp" />
+              <span className="fade">{wallet?.positions.length ?? 0}</span></div>
+            <div className="pb"><PositionsPanel wallet={wallet} /></div>
+          </div>
+          <div className="panel">
+            <div className="ph"><span>ORDER BOOK</span><span className="sp" />
+              <span className="fade">{asset} · 2s</span></div>
+            <div className="pb"><BookPanel asset={asset} /></div>
+          </div>
+        </div>
       </div>
     </div>
   );
