@@ -147,11 +147,9 @@ export function AccountPanel({ wallet, trades }: {
       <div className="kv"><span className="mut">Daily loss limit</span>
         <span>{max.toFixed(2)}%{limitUsd !== null && <span className="fade"> · {formatUsd(limitUsd)}</span>}</span></div>
 
-      <div className="limit">
-        <div><div className="k">USED</div><div className="v">{used.toFixed(2)}%</div></div>
-        <div><div className="k">REMAINING</div><div className="v">{remaining.toFixed(2)}%</div></div>
-        <div><div className="k">MAX DAILY</div><div className="v">{max.toFixed(2)}%</div></div>
-      </div>
+      <div className="kv"><span className="mut">Daily limit used</span>
+        <span>{used.toFixed(2)}% <span className="fade">· {remaining.toFixed(2)}% left</span></span></div>
+
       <div className="meter"><i style={{ width: `${Math.min(100, (used / max) * 100)}%` }} /></div>
       <div className="meter-ends">
         <span>0</span>
