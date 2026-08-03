@@ -33,11 +33,11 @@ export function PainMapPanel({ map }: { map: PainMap | null }) {
   const below = map.forcedLevels
     .filter((l) => l.pctFromMid < 0 && l.notionalUsd > 1000)
     .sort((a, b) => b.pctFromMid - a.pctFromMid)
-    .slice(0, 5);
+    .slice(0, 4);
   const above = map.forcedLevels
     .filter((l) => l.pctFromMid > 0 && l.notionalUsd > 1000)
     .sort((a, b) => a.pctFromMid - b.pctFromMid)
-    .slice(0, 5);
+    .slice(0, 4);
 
   const rows = Math.max(below.length, above.length);
   const max = Math.max(1, ...map.forcedLevels.map((l) => l.notionalUsd));
@@ -58,6 +58,7 @@ export function PainMapPanel({ map }: { map: PainMap | null }) {
         <div className="r"><b>Forced buying</b><br /><span className="fade">shorts liquidating above</span></div>
       </div>
 
+      <div className="pm-rows">
       {Array.from({ length: rows }).map((_, i) => {
         const b = below[i], a = above[i];
         return (
@@ -76,6 +77,11 @@ export function PainMapPanel({ map }: { map: PainMap | null }) {
           </div>
         );
       })}
+      </div>
+
+      <div className="pm-axis">
+        <span>{m(max)}</span><span>0</span><span>{m(max)}</span>
+      </div>
 
       {biggestBelow && (
         <div className="pm-note">
@@ -116,6 +122,10 @@ export function AccountPanel({ wallet, trades }: {
   const used = wallet.dailyLossUsed * 100;
   const max = 7;
   const remaining = Math.max(0, max - used);
+  const realised = trades ? trades.netUsd : 0;
+  const limitUsd = wallet.sessionStartEquityUsd
+    ? (wallet.sessionStartEquityUsd * max) / 100
+    : null;
 
   return (
     <>
@@ -124,26 +134,18 @@ export function AccountPanel({ wallet, trades }: {
         <span className={wallet.unrealizedPnlUsd >= 0 ? "up" : "dn"}>
           {wallet.unrealizedPnlUsd >= 0 ? "+" : "−"}{formatUsd(Math.abs(wallet.unrealizedPnlUsd))}
         </span></div>
+      <div className="kv"><span className="mut">Realised, net</span>
+        <span className={realised >= 0 ? "up" : "dn"}>
+          {realised >= 0 ? "+" : "−"}{formatUsd(Math.abs(realised))}
+        </span></div>
       <div className="kv"><span className="mut">Session</span>
         <span className={wallet.sessionPnlUsd >= 0 ? "up" : "dn"}>
           {wallet.sessionPnlUsd >= 0 ? "+" : "−"}{formatUsd(Math.abs(wallet.sessionPnlUsd))}
         </span></div>
       <div className="kv"><span className="mut">In positions</span><span>{formatUsd(wallet.notionalUsd)}</span></div>
-      {trades && trades.trades.length > 0 && (
-        <>
-          <div className="kv"><span className="mut">Realised net</span>
-            <span className={trades.netUsd >= 0 ? "up" : "dn"}>
-              {trades.netUsd >= 0 ? "+" : "−"}{formatUsd(Math.abs(trades.netUsd))}
-            </span></div>
-          <div className="kv"><span className="mut">Closed</span>
-            <span className="fade">
-              {trades.wins + trades.losses} · {trades.wins}W {trades.losses}L ·
-              {" "}{((trades.wins / Math.max(1, trades.wins + trades.losses)) * 100).toFixed(0)}%
-            </span></div>
-          <div className="kv"><span className="mut">Fees paid</span>
-            <span className="fade">−{formatUsd(trades.feesUsd)}</span></div>
-        </>
-      )}
+      {/* A percentage floor with no dollar anchor is not a limit anyone can feel. */}
+      <div className="kv"><span className="mut">Daily loss limit</span>
+        <span>{max.toFixed(2)}%{limitUsd !== null && <span className="fade"> · {formatUsd(limitUsd)}</span>}</span></div>
 
       <div className="limit">
         <div><div className="k">USED</div><div className="v">{used.toFixed(2)}%</div></div>

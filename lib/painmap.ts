@@ -105,6 +105,8 @@ export type TradesResponse = {
 export type WalletState = {
   trading: boolean;
   equityUsd: number;
+  /** Equity the session opened with — what the 7% breaker measures against. */
+  sessionStartEquityUsd?: number;
   notionalUsd: number;
   unrealizedPnlUsd: number;
   sessionPnlUsd: number;

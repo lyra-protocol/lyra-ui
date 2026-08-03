@@ -116,7 +116,7 @@ body {
 .col:last-child { border-right: none; }
 /* Account and positions take what they need; the pain map takes the rest,
    because it is the panel no other terminal has. */
-.col-rail { grid-template-rows: auto auto minmax(0, 1fr); }
+.col-rail { grid-template-rows: auto minmax(0, 1fr) minmax(216px, auto); }
 
 .panel { display: grid; grid-template-rows: auto minmax(0,1fr);
          overflow: hidden; border-bottom: 1px solid var(--rule); }
@@ -155,22 +155,25 @@ canvas { display: block; }
 
 /* ── pain map ───────────────────────────────────────────────────────────── */
 
-.pm { padding: 7px 10px 9px; }
+.pm { padding: 7px 10px 8px; height: 100%; display: flex; flex-direction: column; }
+.pm-rows { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
 .pm-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end;
            font-size: var(--t-9); margin-bottom: 9px; gap: 8px; }
 .pm-head .r { text-align: right; }
 .pm-head .c { text-align: center; border: 1px solid var(--ink); padding: 2px 8px; }
 .pm-row { display: grid; grid-template-columns: 52px 1fr 5px 1fr 52px;
-          align-items: center; gap: 5px; font-size: var(--t-9); margin-bottom: 3px; }
+          align-items: center; gap: 5px; font-size: var(--t-9); }
 .pm-l { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
 .pm-r { display: flex; align-items: center; gap: 5px; }
-.pm-bar { height: 12px; }
+.pm-bar { height: 10px; }
 /* Below spot = longs liquidating = forced SELLING. Solid.
    Above spot = shorts liquidating = forced BUYING. Open.
    Direction survives without colour. */
 .pm-bar.sell { background: var(--ink); }
 .pm-bar.buy  { background: #c4c4cb; border: 1px solid #a8a8b1; }
-.pm-spine { background: var(--ink); height: 16px; }
+.pm-spine { background: var(--ink); height: 14px; }
+.pm-axis { display: flex; justify-content: space-between; padding: 3px 52px 0;
+           font-size: var(--t-8); color: var(--ink-3); }
 .pm-note { display: flex; gap: 7px; align-items: baseline; margin-top: 7px;
            padding-top: 6px; border-top: 1px solid var(--rule-2); font-size: var(--t-9); }
 .pm-note .k { color: var(--ink-3); min-width: 58px; }
