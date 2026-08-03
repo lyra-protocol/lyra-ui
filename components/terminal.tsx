@@ -11,54 +11,345 @@ import {
   fundingAnnualPct,
   type AssetSnapshot,
 } from "@/lib/venue";
-import { deriveStats, fetchRecord, findGaps, type RecordEntry } from "@/lib/record";
-import { VerificationStrip } from "@/components/verification-strip";
+import { fetchPainMap, type PainMap } from "@/lib/painmap";
+import { ForcedFlow } from "@/components/forced-flow";
+import { Activity } from "@/components/activity";
 
 /**
- * The terminal.
+ * The operations terminal.
  *
- * One job (REBUILD-MEMO.md §6): let a stranger see what Lyra is doing and
- * verify it, in under thirty seconds, without an account.
+ * What Lyra can see, as she sees it. Live venue tape, the universe she watches,
+ * and the Pain Map — the forced-flow structure reconstructed from enumerated
+ * positions, which is the one view here that exists nowhere else.
  *
- * There is no chat, no command line, no assistant and no login. Everything here
- * is read directly from Hyperliquid and Arweave in the browser, so nothing on
- * screen depends on trusting a server we run.
+ * Everything on this screen is measured. Where a panel has no data it says so
+ * and says why; nothing is animated to look busier than it is, because a
+ * terminal that performs activity it is not doing is the exact failure the
+ * grounding rule exists to prevent.
  */
-
-const OWNER = process.env.NEXT_PUBLIC_LYRA_OWNER ?? "";
-
 export function Terminal() {
+  const [asset, setAsset] = useState("BTC");
+
   return (
-    <main style={{ maxWidth: 1180, margin: "0 auto", padding: "32px 24px 96px" }}>
-      <Header />
-      <LiveTape />
-      <Watching />
-      <Record />
-      <Footer />
-    </main>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <TopBar />
+      <UniverseStrip selected={asset} onSelect={setAsset} />
+      <div
+        style={{
+          flex: 1,
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(300px, 380px)",
+          borderTop: "1px solid var(--rule)",
+        }}
+        className="terminal-grid"
+      >
+        <div style={{ borderRight: "1px solid var(--rule)", minWidth: 0 }}>
+          <PainPanel asset={asset} />
+          <Activity />
+        </div>
+        <Tape />
+      </div>
+      <style>{`
+        @media (max-width: 900px) {
+          .terminal-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+    </div>
   );
 }
 
-function Header() {
+function TopBar() {
+  const [now, setNow] = useState<string>("");
+  useEffect(() => {
+    const tick = () => setNow(new Date().toISOString().slice(11, 19) + "Z");
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
-    <header style={{ marginBottom: 40 }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 16, flexWrap: "wrap" }}>
-        <a href="/" className="display" style={{ fontSize: 26, letterSpacing: "0.02em" }}>
-          Lyra
+    <header
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0 16px",
+        height: 48,
+        borderBottom: "1px solid var(--rule)",
+        gap: 16,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
+        <a href="/" style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.02em" }}>
+          LYRA
         </a>
-        <span style={{ color: "var(--slate)", fontSize: 13 }}>terminal</span>
+        <span className="label">terminal</span>
       </div>
-      <p style={{ margin: "10px 0 0", color: "var(--slate)", fontSize: 14, maxWidth: 640 }}>
-        Every trade she has made, and what she is watching right now. Read straight
-        from Hyperliquid and Arweave — no account, and nothing here asks you to
-        trust it.
-      </p>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+        {/* Honest status. She observes continuously; she does not yet trade. */}
+        <Status />
+        <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
+          {now}
+        </span>
+        <a href="/mcp" className="label" style={{ color: "var(--ink-2)" }}>
+          mcp
+        </a>
+      </div>
     </header>
   );
 }
 
-/** Live trades from the venue. The only animated thing on the site. */
-function LiveTape() {
+function Status() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+      <span
+        className="pulse"
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: "var(--live)",
+          display: "inline-block",
+        }}
+      />
+      <span className="label" style={{ color: "var(--ink-2)" }}>
+        observing
+      </span>
+    </div>
+  );
+}
+
+/** The universe, as a selectable strip. */
+function UniverseStrip({
+  selected,
+  onSelect,
+}: {
+  selected: string;
+  onSelect: (a: string) => void;
+}) {
+  const [assets, setAssets] = useState<AssetSnapshot[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () => fetchUniverse().then((a) => alive && setAssets(a)).catch(() => {});
+    void load();
+    const id = setInterval(load, 10_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  return (
+    <div className="scroll-x" style={{ display: "flex", minHeight: 62 }}>
+      {UNIVERSE.map((coin) => {
+        const a = assets.find((x) => x.coin === coin);
+        const chg = a ? dayChange(a) : 0;
+        const active = coin === selected;
+        return (
+          <button
+            key={coin}
+            onClick={() => onSelect(coin)}
+            style={{
+              flex: "1 0 120px",
+              textAlign: "left",
+              padding: "10px 14px",
+              border: "none",
+              borderRight: "1px solid var(--rule)",
+              borderBottom: active ? "2px solid var(--ink)" : "2px solid transparent",
+              background: active ? "var(--rule-2)" : "var(--paper)",
+              cursor: "pointer",
+              font: "inherit",
+              color: "inherit",
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.02em" }}>{coin}</div>
+            <div className="mono" style={{ fontSize: 13, marginTop: 2 }}>
+              {a ? formatPx(a.markPx) : "—"}
+            </div>
+            <div
+              className="mono"
+              style={{
+                fontSize: 10.5,
+                marginTop: 1,
+                color: !a ? "var(--ink-3)" : chg >= 0 ? "var(--gain)" : "var(--loss)",
+              }}
+            >
+              {a ? `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%` : ""}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The Pain Map for the selected asset. The view nothing else has. */
+function PainPanel({ asset }: { asset: string }) {
+  const [map, setMap] = useState<PainMap | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setError(null);
+    const load = () =>
+      fetchPainMap(asset)
+        .then((m) => {
+          if (!alive) return;
+          setMap(m);
+          setLoading(false);
+        })
+        .catch((e: Error) => {
+          if (!alive) return;
+          setError(e.message);
+          setLoading(false);
+        });
+    void load();
+    const id = setInterval(load, 20_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [asset]);
+
+  return (
+    <section style={{ borderBottom: "1px solid var(--rule)" }}>
+      <div className="panel-head">
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+          <span className="label">pain map</span>
+          <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
+            {asset} · positions enumerated from the venue
+          </span>
+        </div>
+        {map && (
+          <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
+            {map.positionsEnumerated.toLocaleString()} positions
+            {map.coverage.fraction !== null &&
+              ` · ${(map.coverage.fraction * 100).toFixed(1)}% of OI`}
+          </span>
+        )}
+      </div>
+
+      <div style={{ padding: 16 }}>
+        {loading ? (
+          <Muted>Reading positions…</Muted>
+        ) : error ? (
+          <div>
+            <Muted>The Pain Map is not reachable right now.</Muted>
+            <p style={{ margin: "8px 0 0", fontSize: 11.5, color: "var(--ink-3)", maxWidth: 560 }}>
+              It is reconstructed from a dataset only this project holds — Hyperliquid serves no
+              position history, so it can only be built by watching continuously. Unlike the trade
+              record, which lives on Arweave and needs nobody&rsquo;s permission to verify, this view
+              depends on our collector being reachable.
+            </p>
+            <p className="mono" style={{ margin: "8px 0 0", fontSize: 10.5, color: "var(--ink-3)" }}>
+              {error}
+            </p>
+          </div>
+        ) : map ? (
+          <>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+                gap: 18,
+                marginBottom: 20,
+              }}
+            >
+              <Metric
+                label="losing side"
+                value={map.losingSide}
+                tone={map.losingSide === "neither" ? undefined : "attention"}
+              />
+              <Metric
+                label="crowd unrealised"
+                value={formatUsd(map.aggregateUnrealizedPnlUsd)}
+                tone={map.aggregateUnrealizedPnlUsd >= 0 ? "gain" : "loss"}
+              />
+              <Metric label="mean leverage" value={`${map.meanLeverage.toFixed(1)}x`} />
+              <Metric
+                label="concentration"
+                value={`${(map.concentration * 100).toFixed(0)}%`}
+                hint="largest single position"
+              />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 22 }}>
+              <SideBar
+                label="longs"
+                count={map.longs.count}
+                notional={map.longs.notionalUsd}
+                pnl={map.longs.unrealizedPnlUsd}
+                total={map.longs.notionalUsd + map.shorts.notionalUsd}
+              />
+              <SideBar
+                label="shorts"
+                count={map.shorts.count}
+                notional={map.shorts.notionalUsd}
+                pnl={map.shorts.unrealizedPnlUsd}
+                total={map.longs.notionalUsd + map.shorts.notionalUsd}
+              />
+            </div>
+
+            <ForcedFlow levels={map.forcedLevels} midPx={map.midPx} />
+          </>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function SideBar({
+  label,
+  count,
+  notional,
+  pnl,
+  total,
+}: {
+  label: string;
+  count: number;
+  notional: number;
+  pnl: number;
+  total: number;
+}) {
+  const share = total > 0 ? (notional / total) * 100 : 0;
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <span className="label">{label}</span>
+        <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
+          {count.toLocaleString()}
+        </span>
+      </div>
+      <div className="mono" style={{ fontSize: 15, marginTop: 3 }}>
+        {formatUsd(notional)}
+      </div>
+      <div
+        style={{
+          height: 3,
+          background: "var(--rule-2)",
+          marginTop: 6,
+          position: "relative",
+        }}
+      >
+        <div style={{ position: "absolute", inset: 0, width: `${share}%`, background: "var(--ink)" }} />
+      </div>
+      <div
+        className="mono"
+        style={{ fontSize: 11, marginTop: 5, color: pnl >= 0 ? "var(--gain)" : "var(--loss)" }}
+      >
+        {pnl >= 0 ? "+" : ""}
+        {formatUsd(Math.abs(pnl)).replace("$", "$")} unrealised
+      </div>
+    </div>
+  );
+}
+
+/** Live prints from the venue. */
+function Tape() {
   const [prints, setPrints] = useState<
     { id: string; coin: string; px: string; sz: string; side: string; time: number }[]
   >([]);
@@ -84,7 +375,7 @@ function LiveTape() {
             seen.current.add(String(t.tid));
             return { id: String(t.tid), coin: t.coin, px: t.px, sz: t.sz, side: t.side, time: t.time };
           });
-        if (fresh.length) setPrints((p) => [...fresh, ...p].slice(0, 12));
+        if (fresh.length) setPrints((p) => [...fresh, ...p].slice(0, 60));
       } catch {
         /* a malformed frame is not worth breaking the page over */
       }
@@ -93,303 +384,74 @@ function LiveTape() {
   }, []);
 
   return (
-    <Section
-      title="Live venue tape"
-      note={connected ? "connected to Hyperliquid" : "connecting…"}
-    >
-      <div style={{ minHeight: 180 }}>
-        {prints.length === 0 ? (
-          <Empty>Trades will appear here as they print on Hyperliquid.</Empty>
-        ) : (
-          <div className="mono" style={{ fontSize: 12.5 }}>
-            {prints.map((t) => (
-              <div
-                key={t.id}
-                className="settle"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "68px 1fr auto auto",
-                  gap: 14,
-                  padding: "5px 0",
-                  borderBottom: "1px solid var(--rule)",
-                }}
-              >
-                <span>{t.coin}</span>
-                <span style={{ color: t.side === "B" ? "var(--gain)" : "var(--loss)" }}>
-                  {t.side === "B" ? "buy " : "sell"}
-                </span>
-                <span>{formatPx(t.px)}</span>
-                <span style={{ color: "var(--slate)" }}>{t.sz}</span>
-              </div>
-            ))}
-          </div>
-        )}
+    <aside style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+      <div className="panel-head">
+        <span className="label">venue tape</span>
+        <span className="label" style={{ color: connected ? "var(--live)" : "var(--ink-3)" }}>
+          {connected ? "live" : "connecting"}
+        </span>
       </div>
-    </Section>
-  );
-}
-
-/** The universe she watches, and why each asset is in it. */
-function Watching() {
-  const [assets, setAssets] = useState<AssetSnapshot[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    const load = () =>
-      fetchUniverse()
-        .then((a) => alive && setAssets(a))
-        .catch((e: Error) => alive && setError(e.message));
-    void load();
-    const id = setInterval(load, 15_000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, []);
-
-  return (
-    <Section
-      title="What she is watching"
-      note={`${UNIVERSE.length} assets, selected for decorrelation`}
-    >
-      {error ? (
-        <Empty>Could not reach Hyperliquid: {error}</Empty>
-      ) : !assets ? (
-        <Empty>Loading venue state…</Empty>
-      ) : (
-        <div className="scroll-x">
-          <table className="mono" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 640 }}>
-            <thead>
-              <tr style={{ color: "var(--slate)", textAlign: "right" }}>
-                <th style={{ textAlign: "left", padding: "6px 0", fontWeight: 400 }}>asset</th>
-                <th style={{ padding: "6px 12px", fontWeight: 400 }}>mark</th>
-                <th style={{ padding: "6px 12px", fontWeight: 400 }}>24h</th>
-                <th style={{ padding: "6px 12px", fontWeight: 400 }}>funding /yr</th>
-                <th style={{ padding: "6px 12px", fontWeight: 400 }}>open interest</th>
-                <th style={{ padding: "6px 0 6px 12px", fontWeight: 400 }}>24h volume</th>
-              </tr>
-            </thead>
-            <tbody>
-              {assets.map((a) => {
-                const chg = dayChange(a);
-                const fund = fundingAnnualPct(a);
-                return (
-                  <tr key={a.coin} style={{ borderTop: "1px solid var(--rule)", textAlign: "right" }}>
-                    <td style={{ textAlign: "left", padding: "7px 0" }}>{a.coin}</td>
-                    <td style={{ padding: "7px 12px" }}>{formatPx(a.markPx)}</td>
-                    <td style={{ padding: "7px 12px", color: chg >= 0 ? "var(--gain)" : "var(--loss)" }}>
-                      {chg >= 0 ? "+" : ""}
-                      {chg.toFixed(2)}%
-                    </td>
-                    <td style={{ padding: "7px 12px", color: "var(--slate)" }}>
-                      {fund >= 0 ? "+" : ""}
-                      {fund.toFixed(1)}%
-                    </td>
-                    <td style={{ padding: "7px 12px", color: "var(--slate)" }}>
-                      {formatUsd(Number(a.openInterest) * Number(a.markPx))}
-                    </td>
-                    <td style={{ padding: "7px 0 7px 12px", color: "var(--slate)" }}>
-                      {formatUsd(a.dayNtlVlm)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </Section>
-  );
-}
-
-/** The record itself. Losses shown as prominently as wins. */
-function Record() {
-  const [entries, setEntries] = useState<RecordEntry[] | null>(null);
-
-  useEffect(() => {
-    if (!OWNER) {
-      setEntries([]);
-      return;
-    }
-    void fetchRecord(OWNER)
-      .then(setEntries)
-      .catch(() => setEntries([]));
-  }, []);
-
-  const stats = entries ? deriveStats(entries) : null;
-  const gaps = entries ? findGaps(entries) : [];
-
-  return (
-    <Section title="The record" note="written to Arweave, cannot be edited or deleted">
-      {!entries ? (
-        <Empty>Reading the record from Arweave…</Empty>
-      ) : entries.length === 0 ? (
-        <Empty>
-          No trades recorded yet. The first will appear here the moment Lyra closes a
-          position and writes it to Arweave — with a link to the record and to the
-          Hyperliquid wallet, so you can check it against the venue yourself.
-        </Empty>
-      ) : (
-        <>
-          {stats && (
+      <div className="scroll-y mono" style={{ flex: 1, maxHeight: "70vh", fontSize: 11 }}>
+        {prints.length === 0 ? (
+          <div style={{ padding: 16 }}>
+            <Muted>Prints appear here as they happen on Hyperliquid.</Muted>
+          </div>
+        ) : (
+          prints.map((t) => (
             <div
+              key={t.id}
+              className="settle"
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                gap: 20,
-                paddingBottom: 20,
-                marginBottom: 20,
-                borderBottom: "1px solid var(--rule)",
+                gridTemplateColumns: "46px 1fr auto",
+                gap: 10,
+                padding: "5px 14px",
+                borderBottom: "1px solid var(--rule-2)",
               }}
             >
-              <Stat label="trades" value={String(stats.count)} derivation="count of records" />
-              <Stat
-                label="win rate"
-                value={`${stats.winRate.toFixed(1)}%`}
-                derivation={`${stats.wins} of ${stats.count}`}
-              />
-              <Stat
-                label="net pnl"
-                value={`${stats.pnl >= 0 ? "+" : ""}${stats.pnl.toFixed(2)}`}
-                tone={stats.pnl >= 0 ? "gain" : "loss"}
-                derivation="sum of pnl fields"
-              />
-              <Stat label="fees paid" value={stats.fees.toFixed(2)} derivation="sum of fees fields" />
-              <Stat
-                label="max drawdown"
-                value={stats.maxDrawdown.toFixed(2)}
-                derivation="peak-to-trough of cumulative pnl"
-              />
+              <span style={{ color: "var(--ink-2)" }}>{t.coin}</span>
+              <span style={{ color: t.side === "B" ? "var(--gain)" : "var(--loss)" }}>
+                {formatPx(t.px)}
+              </span>
+              <span style={{ color: "var(--ink-3)" }}>{t.sz}</span>
             </div>
-          )}
-
-          {gaps.length > 0 && (
-            <p style={{ fontSize: 12.5, color: "var(--slate)", marginTop: 0 }}>
-              Sequence gaps at {gaps.join(", ")}. A gap means a sequence number was
-              never written — it is how omission stays visible. It is not proof of
-              anything on its own: a crash leaves one, and so does indexing lag.
-            </p>
-          )}
-
-          <div className="scroll-x">
-            {[...entries].reverse().map((e) => {
-              const pnl = Number(e.trade.pnl);
-              return (
-                <div
-                  key={e.arweaveId}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "44px 90px 60px 1fr 1fr 110px 28px",
-                    gap: 12,
-                    alignItems: "center",
-                    padding: "9px 0",
-                    borderBottom: "1px solid var(--rule)",
-                    fontSize: 12.5,
-                    minWidth: 640,
-                  }}
-                  className="mono"
-                >
-                  <span style={{ color: "var(--slate)" }}>{e.trade.sequence}</span>
-                  <span>{e.trade.pair}</span>
-                  <span style={{ color: "var(--slate)" }}>{e.trade.side}</span>
-                  <span style={{ color: "var(--slate)" }}>{e.trade.entry_price}</span>
-                  <span style={{ color: "var(--slate)" }}>{e.trade.exit_price}</span>
-                  <span style={{ color: pnl >= 0 ? "var(--gain)" : "var(--loss)", textAlign: "right" }}>
-                    {pnl >= 0 ? "+" : ""}
-                    {e.trade.pnl}
-                  </span>
-                  <VerificationStrip
-                    arweaveId={e.arweaveId}
-                    venueAddress={e.trade.venue_address}
-                    venueOpenId={e.trade.venue_open_id}
-                    venueCloseId={e.trade.venue_close_id}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </Section>
-  );
-}
-
-function Footer() {
-  return (
-    <footer style={{ marginTop: 56, paddingTop: 20, borderTop: "1px solid var(--rule)", fontSize: 12.5, color: "var(--slate)" }}>
-      <p style={{ margin: 0, maxWidth: 680 }}>
-        Prices and trades come from Hyperliquid&rsquo;s public API. The record comes
-        from Arweave. Both are queryable by anyone — this page holds no data of its
-        own and stores nothing about you.
-      </p>
-      <p style={{ margin: "10px 0 0" }}>
-        <a href="/mcp" style={{ color: "var(--slate)", borderBottom: "1px solid var(--rule)" }}>
-          connect over MCP
-        </a>
-      </p>
-    </footer>
-  );
-}
-
-/* ── shared shell ───────────────────────────────────────────────────────── */
-
-function Section({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
-  return (
-    <section style={{ marginBottom: 44 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          gap: 16,
-          borderBottom: "1px solid var(--rule-strong)",
-          paddingBottom: 8,
-          marginBottom: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 500, letterSpacing: "0.04em", textTransform: "lowercase" }}>
-          {title}
-        </h2>
-        {note && <span style={{ fontSize: 12, color: "var(--slate)" }}>{note}</span>}
+          ))
+        )}
       </div>
-      {children}
-    </section>
+    </aside>
   );
 }
 
-function Stat({
+function Metric({
   label,
   value,
-  derivation,
   tone,
+  hint,
 }: {
   label: string;
   value: string;
-  derivation: string;
-  tone?: "gain" | "loss";
+  tone?: "gain" | "loss" | "attention";
+  hint?: string;
 }) {
+  const color =
+    tone === "gain" ? "var(--gain)" : tone === "loss" ? "var(--loss)" : "var(--ink)";
   return (
     <div>
-      <div style={{ fontSize: 11.5, color: "var(--slate)", marginBottom: 4 }}>{label}</div>
-      <div
-        className="mono"
-        style={{
-          fontSize: 20,
-          color: tone === "gain" ? "var(--gain)" : tone === "loss" ? "var(--loss)" : "var(--paper)",
-        }}
-      >
+      <div className="label">{label}</div>
+      <div className="mono" style={{ fontSize: 17, marginTop: 3, color }}>
         {value}
       </div>
-      {/* Every number shows its derivation — memo §6. */}
-      <div style={{ fontSize: 11, color: "var(--slate)", marginTop: 3, opacity: 0.75 }}>{derivation}</div>
+      {hint && (
+        <div style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 1 }}>{hint}</div>
+      )}
     </div>
   );
 }
 
-function Empty({ children }: { children: React.ReactNode }) {
+function Muted({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ fontSize: 13, color: "var(--slate)", margin: 0, maxWidth: 620, lineHeight: 1.6 }}>{children}</p>
+    <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-2)", maxWidth: 560, lineHeight: 1.6 }}>
+      {children}
+    </p>
   );
 }

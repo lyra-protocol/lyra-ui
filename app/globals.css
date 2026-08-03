@@ -1,116 +1,106 @@
 @import "tailwindcss";
 
 /*
- * Palette from REBUILD-MEMO.md §7.
+ * Bright white, near-black, one accent.
  *
- * The semantic rule that must never be broken: gold appears only where
- * something is verifiable. Not for decoration, not for emphasis, not for a
- * hover state. If it is gold, you can check it.
+ * This overrides the palette in REBUILD-MEMO §7, which specified a dark
+ * observatory scheme. Recorded as a deliberate override rather than drift.
  *
- * Red and green are restricted entirely to PnL figures. Never UI chrome.
+ * What is kept from the memo, because it was the part that mattered: the
+ * SEMANTIC rule. One colour means "you can verify this yourself", and it is
+ * used nowhere else. Red and green touch PnL figures and nothing else — never
+ * UI chrome. Numbers are monospace with tabular figures throughout, because
+ * numbers are the content here.
  */
 :root {
-  color-scheme: dark;
-
-  --night: #0b0e1a;        /* deep observatory night — background, not pure black */
-  --paper: #e8e4d9;        /* plate paper — primary text */
-  --slate: #7b8fa8;        /* cold slate — secondary text, grid lines */
-  --vega: #c9a227;         /* Vega gold — verification marks and chain links ONLY */
-  --loss: #b4453c;         /* muted signal red — PnL only */
-  --gain: #4a7c59;         /* muted signal green — PnL only */
-
-  --rule: rgba(123, 143, 168, 0.18);
-  --rule-strong: rgba(123, 143, 168, 0.32);
-  --panel: rgba(123, 143, 168, 0.05);
+  --paper: #ffffff;
+  --ink: #0a0a0a;
+  --ink-2: #52525b;      /* secondary text */
+  --ink-3: #a1a1aa;      /* tertiary, labels */
+  --rule: #e4e4e7;       /* hairlines */
+  --rule-2: #f4f4f5;     /* panel fills */
+  --verify: #0a0a0a;     /* verification marks — ink, so it reads as authoritative */
+  --live: #16a34a;       /* connection state only */
+  --gain: #15803d;
+  --loss: #b91c1c;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-html,
-body {
+html, body {
   margin: 0;
   padding: 0;
-  background: var(--night);
-  color: var(--paper);
-  /* Tabular figures everywhere. Numbers are the content on this site. */
+  background: var(--paper);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
+  font-feature-settings: "tnum" 1, "cv05" 1;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 15px;
-  line-height: 1.55;
+  font-family: ui-sans-serif, -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: -0.006em;
 }
 
 .mono {
   font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
-}
-
-/* The display face: editorial/scientific character, used sparingly. */
-.display {
-  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  font-weight: 400;
   letter-spacing: -0.01em;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+a { color: inherit; text-decoration: none; }
+
+/* The label style used on every panel header. */
+.label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
-/* Gold is reserved. Links that leave for chain data earn it. */
-a.verify {
-  color: var(--vega);
-  border-bottom: 1px solid rgba(201, 162, 39, 0.35);
-}
-a.verify:hover {
-  border-bottom-color: var(--vega);
+.panel {
+  border: 1px solid var(--rule);
+  background: var(--paper);
 }
 
-::selection {
-  background: rgba(201, 162, 39, 0.25);
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--rule);
 }
 
-/* Visible keyboard focus — the quality floor, not announced. */
-:focus-visible {
-  outline: 2px solid var(--vega);
-  outline-offset: 2px;
-}
+::selection { background: #0a0a0a; color: #fff; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
-/* The one piece of motion on the site: a new trade settling into the record. */
+/* A new print arriving on the tape. The only motion on the page. */
 @keyframes settle {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: none; }
 }
+.settle { animation: settle 260ms cubic-bezier(0.16, 1, 0.3, 1); }
 
-.settle {
-  animation: settle 420ms cubic-bezier(0.16, 1, 0.3, 1);
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
 }
+.pulse { animation: pulse 2s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .settle {
-    animation: none;
-  }
-  * {
-    transition: none !important;
-  }
+  .settle, .pulse { animation: none; }
+  * { transition: none !important; }
 }
 
-/* Wide data scrolls inside its own container; the page body never does. */
-.scroll-x {
-  overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--rule-strong) transparent;
+.scroll-x { overflow-x: auto; scrollbar-width: thin; }
+.scroll-y { overflow-y: auto; scrollbar-width: thin; }
+.scroll-y::-webkit-scrollbar, .scroll-x::-webkit-scrollbar { width: 6px; height: 6px; }
+.scroll-y::-webkit-scrollbar-thumb, .scroll-x::-webkit-scrollbar-thumb {
+  background: var(--rule); border-radius: 3px;
 }
