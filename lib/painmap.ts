@@ -10,7 +10,8 @@
  * without running their own collector for as long as we have.
  */
 
-const BASE = process.env.NEXT_PUBLIC_LYRA_API ?? "";
+// Same-origin: the request goes to this app, which proxies it server-side.
+const BASE = "/api/lyra";
 
 export type ForcedLevel = {
   pctFromMid: number;
@@ -49,11 +50,32 @@ export type ActivityResponse = {
 };
 
 async function get<T>(path: string): Promise<T> {
-  if (!BASE) throw new Error("NEXT_PUBLIC_LYRA_API is not configured");
+  
   const res = await fetch(`${BASE}${path}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`collector returned ${res.status}`);
   return (await res.json()) as T;
 }
 
-export const fetchPainMap = (asset: string) => get<PainMap>(`/api/painmap?asset=${asset}`);
-export const fetchActivity = () => get<ActivityResponse>("/api/activity?limit=25");
+export const fetchPainMap = (asset: string) => get<PainMap>(`/painmap?asset=${asset}`);
+export const fetchActivity = () => get<ActivityResponse>("/activity?limit=25");
+
+export type WalletState = {
+  trading: boolean;
+  equityUsd: number;
+  notionalUsd: number;
+  unrealizedPnlUsd: number;
+  sessionPnlUsd: number;
+  openPositions: number;
+  /** Fraction of session-start equity lost today. The 7% breaker measures this. */
+  dailyLossUsed: number;
+  positions: {
+    asset: string;
+    side: "long" | "short";
+    size: string;
+    entryPx: string;
+    stopPx: string | null;
+    unrealizedPnlUsd: number;
+  }[];
+};
+
+export const fetchWallet = () => get<WalletState>("/wallet");
