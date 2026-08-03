@@ -558,3 +558,62 @@ th.r, td.r { text-align: right; }
   .hub-row .go { display: none; }
   .hub-foot-r { text-align: left; }
 }
+
+/* ── /mcp — connect, configure, call ────────────────────────────────────── */
+
+.hub-mark .w { text-decoration: none; color: inherit; }
+
+.mcp-step { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 0 26px;
+            padding: 40px 0; border-top: 1px solid var(--rule); }
+.mcp-n { font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+         letter-spacing: .14em; color: var(--ink-3); padding-top: 6px; }
+.mcp-b { max-width: 68ch; }
+.mcp-b h2 { font-size: 21px; margin: 0 0 14px; font-weight: 600; letter-spacing: -.014em; }
+.mcp-note { font-size: 14px; line-height: 1.66; color: var(--ink-2); margin: 0 0 18px;
+            max-width: 62ch; }
+.mcp-err { font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+           color: var(--loss); margin: 14px 0 0; line-height: 1.6; }
+
+.mcp-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.mcp-quiet { font: inherit; font-size: 13px; background: none; border: none;
+             color: var(--ink-3); cursor: pointer; text-decoration: underline;
+             text-underline-offset: 3px; padding: 0; }
+.mcp-quiet:hover { color: var(--ink); }
+.ly-btn:disabled { background: var(--wash); color: var(--ink-3);
+                   border-color: var(--rule); cursor: not-allowed; }
+
+.mcp-session { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+               border-top: 1px solid var(--rule); border-left: 1px solid var(--rule);
+               margin-bottom: 14px; }
+.mcp-session > div { padding: 12px 14px; border-right: 1px solid var(--rule);
+                     border-bottom: 1px solid var(--rule); display: flex;
+                     flex-direction: column; gap: 5px; }
+.mcp-session .k { font-family: ui-monospace, Menlo, monospace; font-size: 9px;
+                  letter-spacing: .11em; color: var(--ink-3); }
+.mcp-session .v { font-family: ui-monospace, Menlo, monospace; font-size: 13px;
+                  word-break: break-all; }
+
+/* The token is long and must be selectable in one gesture. */
+.mcp-token { border: 1px solid var(--ink); padding: 12px 14px; margin-bottom: 16px;
+             background: var(--wash); }
+.mcp-token code { font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+                  line-height: 1.7; word-break: break-all; user-select: all; }
+
+.mcp-pre { border: 1px solid var(--rule); background: var(--wash);
+           padding: 16px 18px; margin: 0 0 18px; overflow-x: auto; }
+.mcp-pre code { font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+                line-height: 1.65; white-space: pre; }
+.mcp-b > .mcp-note code { font-family: ui-monospace, Menlo, monospace; font-size: .9em;
+                          background: var(--wash); padding: 1px 5px;
+                          border: 1px solid var(--rule-2); }
+
+.mcp-tools { border-top: 1px solid var(--rule); }
+.mcp-tool { display: grid; grid-template-columns: 156px minmax(0, 1fr); gap: 18px;
+            padding: 13px 0; border-bottom: 1px solid var(--rule); align-items: baseline; }
+.mcp-tool code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+.mcp-tool span { font-size: 14px; line-height: 1.6; color: var(--ink-2); }
+
+@media (max-width: 800px) {
+  .mcp-step { grid-template-columns: 1fr; gap: 8px; padding: 32px 0; }
+  .mcp-tool { grid-template-columns: 1fr; gap: 4px; }
+}
