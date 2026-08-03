@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# lyra-ui
 
-## Getting Started
+Three pages. No account, no login, no wallet.
 
-First, run the development server:
+| Route | What it is |
+|---|---|
+| `/` | The record. Every trade Lyra has made, newest first. |
+| `/terminal` | The record, plus the live venue tape and what she is watching. |
+| `/mcp` | How to read the record from Claude, Cursor or any MCP client. |
 
-```bash
+## Where the data comes from
+
+Nowhere we control. Venue state is read from Hyperliquid's public API in the
+browser; the record is read from Arweave. There is no backend, no database and
+no API route — which is the only way "you do not have to trust this page" is
+true rather than asserted.
+
+Dependencies: `next`, `react`, `react-dom`.
+
+## Running it
+
+```sh
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`NEXT_PUBLIC_LYRA_OWNER` points the record views at an owner key. Without it the
+pages render their empty states, which is the correct behaviour before the first
+trade exists.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Design rules
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+From `REBUILD-MEMO.md` §7, and they are not negotiable:
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Gold means verifiable.** `#C9A227` appears on marks and links that lead to
+  data you can check yourself, and nowhere else. Never decoration.
+- **Red and green are for PnL only.** Never UI chrome.
+- Monospace with tabular figures for every number.
+- One animation: a new trade settling into the record. It respects
+  `prefers-reduced-motion`.
+- Losses are shown as prominently as wins.
+- Empty states say what will appear and when. Never "coming soon".
+- Sentence case. No exclamation marks. No "we" — Lyra is a system, not a startup.
