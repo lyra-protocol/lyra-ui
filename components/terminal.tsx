@@ -13,6 +13,27 @@ import { AccountPanel, Age, BookPanel, PainMapPanel, PositionsPanel } from "@/co
 import { Chart, INTERVALS, type Interval } from "@/components/chart";
 
 /**
+ * How a decision stands with respect to the permanent record.
+ *
+ * Three states, and conflating them is the one error this screen cannot afford:
+ * its whole argument is that its claims are checkable, so a decision that was
+ * never written must never be labelled as though it were.
+ *
+ *   no id            — she held. No position exists, so there is nothing to
+ *                      timestamp. Not a failure: declining is often correct.
+ *   "local:" prefix  — off-chain paper run. Reasoning exists locally but was
+ *                      not uploaded, because Arweave has no delete and a ledger
+ *                      of untuned noise is a permanent liability.
+ *   anything else    — a real Arweave transaction id.
+ */
+function ledger(d: Decision): { tag: string; ledger: string; status: string } {
+  if (!d.reasoningId) return { tag: "NO RECORD", ledger: "Not written", status: "Held — no position" };
+  if (d.reasoningId.startsWith("local:"))
+    return { tag: "PAPER · PENDING", ledger: "Local only", status: "Paper trading" };
+  return { tag: "ON CHAIN", ledger: "Arweave", status: "Permanent" };
+}
+
+/**
  * The terminal.
  *
  * Two bands. The upper one is the market — chart, book, her account — and the
@@ -119,7 +140,7 @@ export function Terminal() {
       <div className="bar">
         <span className="brand">LYRA TERMINAL</span>
         <span><span className="dot" />LIVE</span>
-        <span className="mut">PUBLIC VIEW · READ-ONLY · ALL DECISIONS PERMANENT</span>
+        <span className="mut">PUBLIC VIEW · READ-ONLY · EVERY CONSULTATION SHOWN</span>
         <span className="sp" />
         <span className="fresh"><span className="fade">MARKET</span><b><Age ms={ages.mkt} /></b></span>
         <span className="fresh"><span className="fade">ENGINE</span>
@@ -255,14 +276,23 @@ export function Terminal() {
                   {/* The record is the differentiator, so it is never a detail
                       that can be overlooked. */}
                   <div className="rec">
-                    <span><span className="k">COMMITTED</span>
+                    <span><span className="k">DECIDED</span>
                       <span className="v">{new Date(d.at).toISOString().slice(11, 19)} UTC</span></span>
-                    <span><span className="k">RECORD</span>
-                      <span className="v">{d.reasoningId ?? "—"}</span></span>
-                    <span className="tag">
-                      {d.reasoningId?.startsWith("local:") ? "PAPER · PENDING" : "ON CHAIN"}
-                    </span>
-                    <span className="fade">written before the outcome was known</span>
+                    {d.reasoningId ? (
+                      <>
+                        <span><span className="k">RECORD</span>
+                          <span className="v">{d.reasoningId}</span></span>
+                        <span className="tag">{ledger(d).tag}</span>
+                        <span className="fade">written before the outcome was known</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="tag">NO RECORD</span>
+                        <span className="fade">
+                          she declined to trade, so there is no position to timestamp
+                        </span>
+                      </>
+                    )}
                   </div>
                 </button>
               ))
@@ -320,13 +350,14 @@ export function Terminal() {
                   <div className="exp-kv"><span className="fade">Committed</span>
                     <span>{new Date(current.at).toISOString().slice(0, 19).replace("T", " ")} UTC</span></div>
                   <div className="exp-kv"><span className="fade">Record ID</span>
-                    <span>{current.reasoningId ?? "—"}</span></div>
+                    <span>{current.reasoningId ?? "none"}</span></div>
                   <div className="exp-kv"><span className="fade">Ledger</span>
-                    <span>{current.reasoningId?.startsWith("local:") ? "Pending" : "Committed"}</span></div>
+                    <span>{ledger(current).ledger}</span></div>
                   <div className="exp-kv"><span className="fade">Status</span>
-                    <span>{current.reasoningId?.startsWith("local:") ? "Paper trading" : "Live"}</span></div>
+                    <span>{ledger(current).status}</span></div>
                   <div className="exp-kv last">
-                    <span className="fade">Written before outcome</span><span>Yes</span></div>
+                    <span className="fade">Written before outcome</span>
+                    <span>{current.reasoningId ? "Yes" : "n/a — no position taken"}</span></div>
                 </div>
               </>
             )}
