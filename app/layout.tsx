@@ -10,15 +10,17 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.lyrabuild.xyz"),
-  title: "Lyra",
+  title: "Lyrabuild — Scion Systems Ltd",
   description:
-    "Every trade this agent has ever made, written where nobody can change it.",
+    "Lyra is an autonomous trading agent that writes down why she is about to trade, " +
+    "before she finds out whether she was right.",
   openGraph: {
-    title: "Lyra",
+    title: "Lyrabuild — Scion Systems Ltd",
     description:
-      "Every trade this agent has ever made, written where nobody can change it.",
+      "Lyra is an autonomous trading agent that writes down why she is about to trade, " +
+      "before she finds out whether she was right.",
     url: "https://www.lyrabuild.xyz",
-    siteName: "Lyra",
+    siteName: "Lyrabuild",
   },
 };
 

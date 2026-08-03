@@ -464,3 +464,94 @@ th.r, td.r { text-align: right; }
   .ly-end { padding: 64px 22px 78px; }
   .ly-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * lyrabuild.xyz — the hub
+ *
+ * An index, not a second pitch. /lyra argues for her; this says what exists and
+ * where it lives, so it is built from rows and counts rather than a hero. The
+ * type is quieter than /lyra deliberately: a directory that shouts competes
+ * with the thing it is pointing at.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+.hub {
+  --sans: "Helvetica Neue", Inter, system-ui, -apple-system, sans-serif;
+  font-family: var(--sans);
+  max-width: 1120px; margin: 0 auto; padding: 0 40px 80px;
+  min-height: 100svh; display: flex; flex-direction: column;
+}
+.hub ::selection { background: var(--ink); color: var(--paper); }
+
+.hub-top { display: flex; align-items: center; justify-content: space-between;
+           gap: 20px; flex-wrap: wrap; padding: 26px 0 22px;
+           border-bottom: 1px solid var(--ink); }
+.hub-mark { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.hub-mark .w { font-size: 17px; font-weight: 700; letter-spacing: .17em; }
+.hub-mark .b { font-family: ui-monospace, Menlo, monospace; font-size: 10px;
+               letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.hub-live { font-family: ui-monospace, Menlo, monospace; font-size: 10px;
+            letter-spacing: .12em; color: var(--ink-2);
+            display: flex; align-items: center; gap: 8px; }
+
+.hub-lede { padding: 62px 0 54px; }
+.hub h1 { font-size: clamp(24px, 2.9vw, 38px); line-height: 1.22; margin: 0;
+          font-weight: 600; letter-spacing: -.018em; max-width: 26ch;
+          text-wrap: balance; }
+.hub-lede p { font-size: 15px; line-height: 1.66; color: var(--ink-2);
+              max-width: 58ch; margin: 20px 0 0; }
+
+/* ── the index ──────────────────────────────────────────────────────────── */
+
+.hub-index { border-top: 1px solid var(--ink); }
+.hub-row {
+  display: grid; grid-template-columns: 168px minmax(0, 1fr) auto 24px;
+  gap: 24px; align-items: baseline; padding: 22px 0;
+  border-bottom: 1px solid var(--rule);
+  text-decoration: none; color: inherit;
+}
+.hub-row:hover { background: var(--wash); }
+.hub-row .k { font-size: 20px; font-weight: 600; letter-spacing: -.012em; }
+.hub-row .what { font-size: 14px; line-height: 1.6; color: var(--ink-2); max-width: 60ch; }
+.hub-row .v { font-family: ui-monospace, Menlo, monospace; font-size: 13px;
+              white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hub-row .go { color: var(--ink-3); text-align: right; }
+.hub-row:hover .go { color: var(--ink); }
+
+/* ── the dataset ────────────────────────────────────────────────────────── */
+
+.hub-data { padding: 66px 0 0; }
+.hub h2 { font-size: clamp(19px, 1.9vw, 25px); line-height: 1.25; margin: 0 0 14px;
+          font-weight: 600; letter-spacing: -.014em; }
+.hub-note { font-size: 14px; line-height: 1.66; color: var(--ink-2);
+            max-width: 62ch; margin: 0 0 26px; }
+.hub-figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+            border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
+.hub-fig { padding: 16px 18px; border-right: 1px solid var(--rule);
+           border-bottom: 1px solid var(--rule); }
+.hub-fig .k { font-family: ui-monospace, Menlo, monospace; font-size: 9px;
+              letter-spacing: .11em; color: var(--ink-3); }
+.hub-fig .v { font-family: ui-monospace, Menlo, monospace; font-size: 24px;
+              margin-top: 7px; font-variant-numeric: tabular-nums; }
+.hub-fig .n { font-family: ui-monospace, Menlo, monospace; font-size: 9px;
+              color: var(--ink-3); margin-top: 5px; letter-spacing: .04em; }
+
+.hub-foot { margin-top: auto; padding-top: 62px; display: flex;
+            justify-content: space-between; gap: 30px; flex-wrap: wrap; }
+.hub-foot > div { display: flex; flex-direction: column; gap: 4px; }
+.hub-foot b { font-size: 14px; font-weight: 600; }
+.hub-foot span { font-family: ui-monospace, Menlo, monospace; font-size: 10px;
+                 color: var(--ink-3); letter-spacing: .06em; }
+.hub-foot-r { font-family: ui-monospace, Menlo, monospace; font-size: 10px;
+              color: var(--ink-3); line-height: 1.7; max-width: 46ch;
+              text-align: right; display: block !important; }
+
+@media (max-width: 800px) {
+  .hub { padding: 0 20px 56px; }
+  .hub-lede { padding: 40px 0 34px; }
+  .hub-row { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; padding: 18px 0; }
+  .hub-row .k { grid-column: 1; }
+  .hub-row .what { grid-column: 1 / -1; }
+  .hub-row .v { grid-column: 2; grid-row: 1; }
+  .hub-row .go { display: none; }
+  .hub-foot-r { text-align: left; }
+}
