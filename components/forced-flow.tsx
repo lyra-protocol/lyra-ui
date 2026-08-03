@@ -22,8 +22,8 @@ export function ForcedFlow({ levels, midPx }: { levels: ForcedLevel[]; midPx: st
   if (levels.length === 0) {
     return (
       <div>
-        <div className="label" style={{ marginBottom: 8 }}>forced flow</div>
-        <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-2)" }}>
+        <div className="lbl" style={{ marginBottom: 8 }}>forced flow</div>
+        <p style={{ margin: 0, fontSize: "var(--t-body)", color: "var(--ink-2)" }}>
           No liquidation levels within 15% of spot in the observed sample.
         </p>
       </div>
@@ -37,8 +37,8 @@ export function ForcedFlow({ levels, midPx }: { levels: ForcedLevel[]; midPx: st
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-        <span className="label">forced flow</span>
-        <span style={{ fontSize: 10.5, color: "var(--ink-3)" }}>
+        <span className="lbl">forced flow</span>
+        <span style={{ fontSize: "var(--t-micro)", color: "var(--ink-3)" }}>
           notional that must trade if price reaches the level
         </span>
       </div>
@@ -59,8 +59,8 @@ export function ForcedFlow({ levels, midPx }: { levels: ForcedLevel[]; midPx: st
           margin: "3px 0",
         }}
       >
-        <span className="label" style={{ color: "var(--ink)" }}>spot</span>
-        <span className="mono" style={{ fontSize: 12, fontWeight: 600 }}>{midPx}</span>
+        <span className="lbl" style={{ color: "var(--ink)" }}>spot</span>
+        <span className="mono" style={{ fontSize: "var(--t-body)", fontWeight: 600 }}>{midPx}</span>
       </div>
 
       {/* Below spot: longs liquidating, which forces selling. */}
@@ -85,7 +85,7 @@ function Row({ level, max }: { level: ForcedLevel; max: number }) {
       }}
       title={`${level.positions} positions become ${level.direction.replace("_", " ")}`}
     >
-      <span className="mono" style={{ fontSize: 11, color: "var(--ink-2)", textAlign: "right" }}>
+      <span className="mono" style={{ fontSize: "var(--t-body)", color: "var(--ink-2)", textAlign: "right" }}>
         {level.pctFromMid > 0 ? "+" : ""}
         {level.pctFromMid.toFixed(1)}%
       </span>
@@ -106,10 +106,10 @@ function Row({ level, max }: { level: ForcedLevel; max: number }) {
         />
       </div>
 
-      <span className="mono" style={{ fontSize: 11 }}>
+      <span className="mono" style={{ fontSize: "var(--t-body)", }}>
         ${(level.notionalUsd / 1e6).toFixed(2)}M
       </span>
-      <span className="mono" style={{ fontSize: 10, color: "var(--ink-3)" }}>
+      <span className="mono" style={{ fontSize: "var(--t-micro)", color: "var(--ink-3)" }}>
         {level.positions}
       </span>
     </div>

@@ -33,23 +33,23 @@ export function Wallet() {
 
   return (
     <section style={{ borderBottom: "1px solid var(--rule)" }}>
-      <div className="panel-head">
-        <span className="label">account</span>
+      <div className="head">
+        <span className="lbl">account</span>
         <ReadOnlyBadge />
       </div>
 
       <div style={{ padding: 14 }}>
         {!reachable || !state ? (
-          <p style={{ margin: 0, fontSize: 12, color: "var(--ink-2)", lineHeight: 1.6 }}>
+          <p style={{ margin: 0, fontSize: "var(--t-body)", color: "var(--ink-2)", lineHeight: 1.6 }}>
             Account state is served by Lyra&rsquo;s own collector, which is not reachable right now.
           </p>
         ) : !trading ? (
           <>
-            <div className="mono" style={{ fontSize: 22, letterSpacing: "-0.02em" }}>
+            <div className="mono" style={{ fontSize: "var(--t-hero)", letterSpacing: "-0.02em" }}>
               {formatUsd(state.equityUsd)}
             </div>
-            <div className="label" style={{ marginTop: 3 }}>equity</div>
-            <p style={{ margin: "12px 0 0", fontSize: 11.5, color: "var(--ink-2)", lineHeight: 1.6 }}>
+            <div className="lbl" style={{ marginTop: 3 }}>equity</div>
+            <p style={{ margin: "12px 0 0", fontSize: "var(--t-body)", color: "var(--ink-2)", lineHeight: 1.6 }}>
               She has not opened a position yet. The decision loop is built and tested; it has not
               been pointed at capital. Nothing here is simulated to look busier than it is.
             </p>
@@ -79,8 +79,8 @@ export function Wallet() {
             {/* The breaker is part of the account, not a footnote. */}
             <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--rule)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                <span className="label">daily loss limit</span>
-                <span className="mono" style={{ fontSize: 11 }}>
+                <span className="lbl">daily loss limit</span>
+                <span className="mono" style={{ fontSize: "var(--t-body)", }}>
                   {(state.dailyLossUsed * 100).toFixed(1)}% of 7%
                 </span>
               </div>
@@ -93,7 +93,7 @@ export function Wallet() {
                   }}
                 />
               </div>
-              <p style={{ margin: "8px 0 0", fontSize: 10.5, color: "var(--ink-3)", lineHeight: 1.5 }}>
+              <p style={{ margin: "8px 0 0", fontSize: "var(--t-micro)", color: "var(--ink-3)", lineHeight: 1.5 }}>
                 At 7% down on the session she stops opening positions until tomorrow. Exits stay
                 permitted — a halt must never trap the position it was protecting.
               </p>
@@ -111,7 +111,7 @@ export function ReadOnlyBadge() {
     <span
       title="Nothing on this page can place, change or cancel an order."
       style={{
-        fontSize: 9.5,
+        fontSize: "var(--t-micro)",
         letterSpacing: "0.08em",
         textTransform: "uppercase",
         border: "1px solid var(--rule)",
@@ -130,7 +130,7 @@ function Figure({
 }: { label: string; value: string; tone?: "gain" | "loss"; big?: boolean }) {
   return (
     <div>
-      <div className="label">{label}</div>
+      <div className="lbl">{label}</div>
       <div
         className="mono"
         style={{

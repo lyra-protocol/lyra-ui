@@ -46,9 +46,9 @@ export function Terminal() {
         <aside style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
           <Wallet />
           <section style={{ borderBottom: "1px solid var(--rule)" }}>
-            <div className="panel-head">
-              <span className="label">order book</span>
-              <span style={{ fontSize: 10, color: "var(--ink-3)" }}>{asset} · 2s</span>
+            <div className="head">
+              <span className="lbl">order book</span>
+              <span style={{ fontSize: "var(--t-micro)", color: "var(--ink-3)" }}>{asset} · 2s</span>
             </div>
             <OrderBook asset={asset} />
           </section>
@@ -93,15 +93,15 @@ function TopBar({ asset }: { asset: string }) {
       }}
     >
       <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-        <a href="/" style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.02em" }}>
+        <a href="/" style={{ fontSize: "var(--t-emph)", fontWeight: 600, letterSpacing: "-0.02em" }}>
           LYRA
         </a>
-        <span className="label">{asset} perpetual</span>
+        <span className="lbl">{asset} perpetual</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <ReadOnlyBadge />
-        <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>{now}</span>
-        <a href="/mcp" className="label" style={{ color: "var(--ink-2)" }}>mcp</a>
+        <span className="mono" style={{ fontSize: "var(--t-body)", color: "var(--ink-3)" }}>{now}</span>
+        <a href="/mcp" className="lbl" style={{ color: "var(--ink-2)" }}>mcp</a>
       </div>
     </header>
   );
@@ -142,18 +142,18 @@ function UniverseStrip({ selected, onSelect }: { selected: string; onSelect: (a:
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ fontSize: 10.5, fontWeight: 600 }}>{coin}</span>
-              <span className="mono" style={{ fontSize: 9.5, color: "var(--ink-3)" }}>
+              <span style={{ fontSize: "var(--t-micro)", fontWeight: 600 }}>{coin}</span>
+              <span className="mono" style={{ fontSize: "var(--t-micro)", color: "var(--ink-3)" }}>
                 {a ? `${fundingAnnualPct(a) >= 0 ? "+" : ""}${fundingAnnualPct(a).toFixed(0)}%` : ""}
               </span>
             </div>
-            <div className="mono" style={{ fontSize: 12.5, marginTop: 2 }}>
+            <div className="mono" style={{ fontSize: "var(--t-body)", marginTop: 2 }}>
               {a ? formatPx(a.markPx) : "—"}
             </div>
             <div
               className="mono"
               style={{
-                fontSize: 10,
+                fontSize: "var(--t-micro)",
                 color: !a ? "var(--ink-3)" : chg >= 0 ? "var(--gain)" : "var(--loss)",
               }}
             >
@@ -202,7 +202,7 @@ function ChartWithLevels({ asset }: { asset: string }) {
       <Chart asset={asset} markers={markers} height={330} />
       {markers.length > 0 && (
         <div style={{ padding: "7px 14px", borderTop: "1px solid var(--rule)" }}>
-          <span style={{ fontSize: 10.5, color: "var(--ink-3)" }}>
+          <span style={{ fontSize: "var(--t-micro)", color: "var(--ink-3)" }}>
             Dotted lines are forced-flow clusters — price levels where enumerated positions must
             close. Not drawn from an indicator; summed from real liquidation prices.
           </span>
@@ -230,15 +230,15 @@ function PainPanel({ asset }: { asset: string }) {
 
   return (
     <section style={{ borderBottom: "1px solid var(--rule)" }}>
-      <div className="panel-head">
+      <div className="head">
         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-          <span className="label">pain map</span>
-          <span style={{ fontSize: 10.5, color: "var(--ink-3)" }}>
+          <span className="lbl">pain map</span>
+          <span style={{ fontSize: "var(--t-micro)", color: "var(--ink-3)" }}>
             positions enumerated from the venue, not estimated
           </span>
         </div>
         {map && (
-          <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)" }}>
+          <span className="mono" style={{ fontSize: "var(--t-micro)", color: "var(--ink-3)" }}>
             {map.positionsEnumerated.toLocaleString()}
             {map.coverage.fraction !== null && ` · ${(map.coverage.fraction * 100).toFixed(1)}% of OI`}
           </span>
@@ -248,10 +248,10 @@ function PainPanel({ asset }: { asset: string }) {
       <div style={{ padding: 16 }}>
         {error ? (
           <div>
-            <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.6, maxWidth: 620 }}>
+            <p style={{ margin: 0, fontSize: "var(--t-body)", color: "var(--ink-2)", lineHeight: 1.6, maxWidth: 620 }}>
               The Pain Map is not reachable right now.
             </p>
-            <p style={{ margin: "8px 0 0", fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.6, maxWidth: 620 }}>
+            <p style={{ margin: "8px 0 0", fontSize: "var(--t-body)", color: "var(--ink-3)", lineHeight: 1.6, maxWidth: 620 }}>
               Unlike the trade record — which lives on Arweave and needs nobody&rsquo;s permission to
               verify — this view is reconstructed from a dataset only this project holds.
               Hyperliquid serves no position history, so it exists only because a collector has been
@@ -259,7 +259,7 @@ function PainPanel({ asset }: { asset: string }) {
             </p>
           </div>
         ) : !map ? (
-          <span className="label">reading positions</span>
+          <span className="lbl">reading positions</span>
         ) : (
           <>
             <div
@@ -290,11 +290,11 @@ function PainPanel({ asset }: { asset: string }) {
 function Metric({ label, value, tone }: { label: string; value: string; tone?: "gain" | "loss" }) {
   return (
     <div>
-      <div className="label">{label}</div>
+      <div className="lbl">{label}</div>
       <div
         className="mono"
         style={{
-          fontSize: 16,
+          fontSize: "var(--t-fig)",
           marginTop: 3,
           color: tone === "gain" ? "var(--gain)" : tone === "loss" ? "var(--loss)" : "var(--ink)",
         }}

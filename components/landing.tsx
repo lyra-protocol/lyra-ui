@@ -34,13 +34,13 @@ export function Landing() {
     <main style={{ maxWidth: 1180, margin: "0 auto", padding: "56px 24px 96px" }}>
       {/* The one line of copy, plain and flat. */}
       <p
-        className="display"
+        className="hero"
         style={{ fontSize: "clamp(22px, 3.6vw, 34px)", lineHeight: 1.3, margin: 0, maxWidth: 720 }}
       >
         Every trade this agent has ever made, written where nobody can change it.
       </p>
 
-      <p style={{ color: "var(--slate)", fontSize: 14, margin: "18px 0 0", maxWidth: 620 }}>
+      <p style={{ color: "var(--ink-2)", fontSize: 14, margin: "18px 0 0", maxWidth: 620 }}>
         Lyra trades perpetual futures on Hyperliquid and writes each closed position
         to Arweave. The record cannot be edited or deleted, including by whoever
         built her.
@@ -53,7 +53,7 @@ export function Landing() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "baseline",
-            borderBottom: "1px solid var(--rule-strong)",
+            borderBottom: "1px solid var(--rule)",
             paddingBottom: 8,
             marginBottom: 18,
             gap: 16,
@@ -63,13 +63,13 @@ export function Landing() {
           <h2 style={{ margin: 0, fontSize: 14, fontWeight: 500, letterSpacing: "0.04em" }}>
             the record
           </h2>
-          <a href="/terminal" style={{ fontSize: 12.5, color: "var(--slate)", borderBottom: "1px solid var(--rule)" }}>
+          <a href="/terminal" style={{ fontSize: "var(--t-body)", color: "var(--ink-2)", borderBottom: "1px solid var(--rule)" }}>
             open the terminal
           </a>
         </div>
 
         {!entries ? (
-          <p style={{ color: "var(--slate)", fontSize: 13 }}>Reading from Arweave…</p>
+          <p style={{ color: "var(--ink-2)", fontSize: "var(--t-data)", }}>Reading from Arweave…</p>
         ) : entries.length === 0 ? (
           <EmptyRecord />
         ) : (
@@ -108,14 +108,14 @@ export function Landing() {
                       alignItems: "center",
                       padding: "9px 0",
                       borderBottom: "1px solid var(--rule)",
-                      fontSize: 12.5,
+                      fontSize: "var(--t-body)",
                       minWidth: 600,
                     }}
                   >
-                    <span style={{ color: "var(--slate)" }}>{e.trade.sequence}</span>
+                    <span style={{ color: "var(--ink-2)" }}>{e.trade.sequence}</span>
                     <span>{e.trade.pair}</span>
-                    <span style={{ color: "var(--slate)" }}>{e.trade.side}</span>
-                    <span style={{ color: "var(--slate)" }}>
+                    <span style={{ color: "var(--ink-2)" }}>{e.trade.side}</span>
+                    <span style={{ color: "var(--ink-2)" }}>
                       {new Date(e.trade.close_timestamp).toISOString().slice(0, 16).replace("T", " ")}
                     </span>
                     <span style={{ color: pnl >= 0 ? "var(--gain)" : "var(--loss)", textAlign: "right" }}>
@@ -143,8 +143,8 @@ export function Landing() {
           marginTop: 64,
           paddingTop: 20,
           borderTop: "1px solid var(--rule)",
-          fontSize: 12.5,
-          color: "var(--slate)",
+          fontSize: "var(--t-body)",
+          color: "var(--ink-2)",
           display: "flex",
           gap: 20,
           flexWrap: "wrap",
@@ -169,16 +169,16 @@ export function Landing() {
 function EmptyRecord() {
   return (
     <div style={{ padding: "28px 0", maxWidth: 640 }}>
-      <p style={{ margin: 0, fontSize: 13.5, color: "var(--slate)", lineHeight: 1.65 }}>
+      <p style={{ margin: 0, fontSize: "var(--t-data)", color: "var(--ink-2)", lineHeight: 1.65 }}>
         The record is empty. Lyra has not yet closed a position.
       </p>
-      <p style={{ margin: "12px 0 0", fontSize: 13.5, color: "var(--slate)", lineHeight: 1.65 }}>
+      <p style={{ margin: "12px 0 0", fontSize: "var(--t-data)", color: "var(--ink-2)", lineHeight: 1.65 }}>
         The first entry appears the moment she does — carrying the pair, entry and
         exit, size, fees, realised pnl, and a gold mark linking to both the Arweave
         record and the Hyperliquid wallet that executed it. Losses will be shown
         exactly as prominently as wins.
       </p>
-      <p style={{ margin: "12px 0 0", fontSize: 13.5, color: "var(--slate)", lineHeight: 1.65 }}>
+      <p style={{ margin: "12px 0 0", fontSize: "var(--t-data)", color: "var(--ink-2)", lineHeight: 1.65 }}>
         Until then, the terminal shows what she is watching.
       </p>
     </div>
@@ -209,8 +209,8 @@ function WhatThisIs() {
 function Note({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 500 }}>{title}</h3>
-      <p style={{ margin: 0, fontSize: 13, color: "var(--slate)", lineHeight: 1.6 }}>{children}</p>
+      <h3 style={{ margin: "0 0 8px", fontSize: "var(--t-data)", fontWeight: 500 }}>{title}</h3>
+      <p style={{ margin: 0, fontSize: "var(--t-data)", color: "var(--ink-2)", lineHeight: 1.6 }}>{children}</p>
     </div>
   );
 }
@@ -218,7 +218,7 @@ function Note({ title, children }: { title: string; children: React.ReactNode })
 function Figure({ label, value, tone }: { label: string; value: string; tone?: "gain" | "loss" }) {
   return (
     <div>
-      <div style={{ fontSize: 11.5, color: "var(--slate)", marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: "var(--t-body)", color: "var(--ink-2)", marginBottom: 4 }}>{label}</div>
       <div
         className="mono"
         style={{

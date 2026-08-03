@@ -37,9 +37,9 @@ export function VerificationStrip({
           background: "none",
           border: "none",
           cursor: "pointer",
-          color: "var(--vega)",
+          color: "var(--ink)",
           padding: "2px 6px",
-          fontSize: 13,
+          fontSize: "var(--t-data)",
           lineHeight: 1,
         }}
       >
@@ -73,8 +73,8 @@ export function VerificationStrip({
           <p
             style={{
               margin: 0,
-              fontSize: 12,
-              color: "var(--slate)",
+              fontSize: "var(--t-body)",
+              color: "var(--ink-2)",
               borderTop: "1px solid var(--rule)",
               paddingTop: 8,
             }}
@@ -99,10 +99,10 @@ function Row({ label, value, href }: { label: string; value: string; href?: stri
         gridTemplateColumns: "minmax(140px, auto) 1fr auto",
         gap: 12,
         alignItems: "baseline",
-        fontSize: 12,
+        fontSize: "var(--t-body)",
       }}
     >
-      <span style={{ color: "var(--slate)" }}>{label}</span>
+      <span style={{ color: "var(--ink-2)" }}>{label}</span>
       {href ? (
         <a className="mono verify" href={href} target="_blank" rel="noreferrer noopener" style={{ wordBreak: "break-all" }}>
           {value}
@@ -121,9 +121,9 @@ function Row({ label, value, href }: { label: string; value: string; href?: stri
         style={{
           background: "none",
           border: "1px solid var(--rule)",
-          color: "var(--slate)",
+          color: "var(--ink-2)",
           cursor: "pointer",
-          fontSize: 11,
+          fontSize: "var(--t-body)",
           padding: "2px 8px",
         }}
       >

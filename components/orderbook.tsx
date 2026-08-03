@@ -38,7 +38,7 @@ export function OrderBook({ asset }: { asset: string }) {
   if (!book) {
     return (
       <div style={{ padding: 14 }}>
-        <span className="label">loading book</span>
+        <span className="lbl">loading book</span>
       </div>
     );
   }
@@ -52,7 +52,7 @@ export function OrderBook({ asset }: { asset: string }) {
     book.asks[0] && book.bids[0] ? Number(book.asks[0][0]) - Number(book.bids[0][0]) : 0;
 
   return (
-    <div className="mono" style={{ fontSize: 10.5 }}>
+    <div className="mono" style={{ fontSize: "var(--t-micro)", }}>
       {[...book.asks].reverse().map(([px, sz], i) => (
         <Level key={`a${i}`} px={px} sz={sz} max={maxSz} side="ask" />
       ))}

@@ -43,6 +43,7 @@ export type ActivityResponse = {
     action: string;
     conviction: number;
     losingSide: string;
+    forcedOrdersAre: string;
     hypothesis: string;
     reasoning: string;
     reasoningId: string | null;

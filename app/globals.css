@@ -1,49 +1,62 @@
 @import "tailwindcss";
 
 /*
- * Bright white, near-black, one accent.
+ * The system. See DESIGN.md for why each of these exists.
  *
- * This overrides the palette in REBUILD-MEMO §7, which specified a dark
- * observatory scheme. Recorded as a deliberate override rather than drift.
- *
- * What is kept from the memo, because it was the part that mattered: the
- * SEMANTIC rule. One colour means "you can verify this yourself", and it is
- * used nowhere else. Red and green touch PnL figures and nothing else — never
- * UI chrome. Numbers are monospace with tabular figures throughout, because
- * numbers are the content here.
+ * Six type sizes, one 4px spacing scale, two colours that carry meaning. Every
+ * value a component needs lives here, so the tenth component cannot contradict
+ * the first.
  */
 :root {
-  --paper: #ffffff;
-  --ink: #0a0a0a;
-  --ink-2: #52525b;      /* secondary text */
-  --ink-3: #a1a1aa;      /* tertiary, labels */
-  --rule: #e4e4e7;       /* hairlines */
-  --rule-2: #f4f4f5;     /* panel fills */
-  --verify: #0a0a0a;     /* verification marks — ink, so it reads as authoritative */
-  --live: #16a34a;       /* connection state only */
-  --gain: #15803d;
-  --loss: #b91c1c;
+  /* Surface. Bright white, near-black — no greys pretending to be black. */
+  --paper:   #ffffff;
+  --ink:     #09090b;
+  --ink-2:   #52525b;   /* supporting prose */
+  --ink-3:   #a1a1aa;   /* labels, units, the quietest legible tier */
+  --rule:    #e4e4e7;   /* structural hairlines */
+  --rule-2:  #f4f4f5;   /* fills and inactive tracks */
+
+  /* Colour carries exactly two meanings. Nothing else is ever coloured. */
+  --gain:    #15803d;
+  --loss:    #b91c1c;
+  --live:    #16a34a;
+
+  /* Type scale — six steps, nothing between them. */
+  --t-micro: 10px;
+  --t-body:  12px;
+  --t-data:  13px;
+  --t-emph:  15px;
+  --t-fig:   20px;
+  --t-hero:  30px;
+
+  /* Spacing — 4px base. */
+  --s1: 4px;  --s2: 8px;  --s3: 12px;
+  --s4: 16px; --s6: 24px; --s8: 32px; --s12: 48px;
 }
 
 * { box-sizing: border-box; }
 
 html, body {
-  margin: 0;
-  padding: 0;
+  margin: 0; padding: 0;
   background: var(--paper);
   color: var(--ink);
   font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1, "cv05" 1;
+  font-feature-settings: "tnum" 1;
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
 }
 
 body {
   font-family: ui-sans-serif, -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
-  font-size: 13px;
+  font-size: var(--t-body);
   line-height: 1.5;
-  letter-spacing: -0.006em;
+  letter-spacing: -0.005em;
 }
+
+a { color: inherit; text-decoration: none; }
+::selection { background: var(--ink); color: var(--paper); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ── type ──────────────────────────────────────────────────────────────── */
 
 .mono {
   font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
@@ -52,55 +65,113 @@ body {
   letter-spacing: -0.01em;
 }
 
-a { color: inherit; text-decoration: none; }
-
-/* The label style used on every panel header. */
-.label {
-  font-size: 10px;
+/* The only label style. Uppercase and tracked so it reads as a label at 10px. */
+.lbl {
+  font-size: var(--t-micro);
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
 
-.panel {
-  border: 1px solid var(--rule);
-  background: var(--paper);
-}
+.fig  { font-size: var(--t-fig);  line-height: 1.15; letter-spacing: -0.02em; }
+.hero { font-size: var(--t-hero); line-height: 1.05; letter-spacing: -0.03em; }
+.emph { font-size: var(--t-emph); font-weight: 500; }
+.data { font-size: var(--t-data); }
+.dim  { color: var(--ink-2); }
+.dimmer { color: var(--ink-3); }
+.gain { color: var(--gain); }
+.loss { color: var(--loss); }
 
-.panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
+/* ── structure ─────────────────────────────────────────────────────────── */
+
+.head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s2) var(--s4);
   border-bottom: 1px solid var(--rule);
+  min-height: 34px;
 }
 
-::selection { background: #0a0a0a; color: #fff; }
-:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.pad { padding: var(--s4); }
 
-/* A new print arriving on the tape. The only motion on the page. */
-@keyframes settle {
-  from { opacity: 0; transform: translateY(-3px); }
-  to   { opacity: 1; transform: none; }
+.row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s3);
 }
-.settle { animation: settle 260ms cubic-bezier(0.16, 1, 0.3, 1); }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.35; }
+.stack { display: grid; gap: var(--s2); }
+
+/* Hairline track used for every proportion bar on the page. */
+.track { height: 3px; background: var(--rule-2); position: relative; }
+.track > i { position: absolute; inset: 0; background: var(--ink); display: block; }
+
+/* ── the decision card: the reason this file exists ────────────────────── */
+
+.decision { border-bottom: 1px solid var(--rule); padding: var(--s4); }
+.decision:last-child { border-bottom: none; }
+
+/* Layer 1 — the call. */
+.decision-call {
+  display: flex; align-items: baseline; gap: var(--s3);
+  flex-wrap: wrap; margin-bottom: var(--s3);
 }
-.pulse { animation: pulse 2s ease-in-out infinite; }
+
+/* Layer 2 — the commitment chain. The order is the evidence, so it is numbered. */
+.chain { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+.chain-step {
+  display: grid;
+  grid-template-columns: 22px 116px 1fr;
+  gap: var(--s3);
+  align-items: baseline;
+  background: var(--paper);
+  padding: var(--s2) var(--s3);
+}
+.chain-n {
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Layer 3 — folded by default. */
+.disclose {
+  margin-top: var(--s3);
+  font-size: var(--t-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: none; border: none; padding: 0;
+  cursor: pointer; font-family: inherit;
+}
+.disclose:hover { color: var(--ink); }
+
+/* A cited observation. Looks like a citation because it is one. */
+.cite {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: var(--t-micro);
+  padding: 2px 6px;
+  border: 1px solid var(--rule);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+/* ── motion: one thing only ────────────────────────────────────────────── */
+
+@keyframes settle { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.settle { animation: settle 240ms cubic-bezier(0.16, 1, 0.3, 1); }
+
+@keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.breathe { animation: breathe 2.4s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .settle, .pulse { animation: none; }
+  .settle, .breathe { animation: none; }
   * { transition: none !important; }
 }
 
-.scroll-x { overflow-x: auto; scrollbar-width: thin; }
-.scroll-y { overflow-y: auto; scrollbar-width: thin; }
-.scroll-y::-webkit-scrollbar, .scroll-x::-webkit-scrollbar { width: 6px; height: 6px; }
-.scroll-y::-webkit-scrollbar-thumb, .scroll-x::-webkit-scrollbar-thumb {
-  background: var(--rule); border-radius: 3px;
-}
+/* ── scroll ────────────────────────────────────────────────────────────── */
+
+.scroll-x { overflow-x: auto; }
+.scroll-y { overflow-y: auto; }
+.scroll-x, .scroll-y { scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
+.scroll-x::-webkit-scrollbar, .scroll-y::-webkit-scrollbar { width: 5px; height: 5px; }
+.scroll-x::-webkit-scrollbar-thumb, .scroll-y::-webkit-scrollbar-thumb { background: var(--rule); }

@@ -173,8 +173,8 @@ export function Chart({
         }}
       >
         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>{asset}</span>
-          <span className="label">perpetual</span>
+          <span style={{ fontSize: "var(--t-data)", fontWeight: 600 }}>{asset}</span>
+          <span className="lbl">perpetual</span>
         </div>
         <div style={{ display: "flex", gap: 2 }}>
           {INTERVALS.map((iv) => (
@@ -183,7 +183,7 @@ export function Chart({
               onClick={() => setInterval_(iv)}
               className="mono"
               style={{
-                fontSize: 10.5,
+                fontSize: "var(--t-micro)",
                 padding: "3px 8px",
                 border: "1px solid",
                 borderColor: iv === interval ? "var(--ink)" : "transparent",
@@ -200,7 +200,7 @@ export function Chart({
       <div ref={wrapRef} style={{ position: "relative", height }}>
         {loading && (
           <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
-            <span className="label">loading candles</span>
+            <span className="lbl">loading candles</span>
           </div>
         )}
         <canvas ref={canvasRef} />
