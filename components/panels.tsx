@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { formatUsd } from "@/lib/venue";
-import type { PainMap, WalletState } from "@/lib/painmap";
+import { formatPx } from "@/lib/venue";
+import type { PainMap, Trade, TradesResponse, WalletState } from "@/lib/painmap";
 
 /** Freshness readout. A terminal should always say how old its data is. */
 export function Age({ ms }: { ms: number | null }) {
@@ -106,7 +107,10 @@ export function PainMapPanel({ map }: { map: PainMap | null }) {
  * percentage, because the discipline is the point: a visitor should see that a
  * hard floor exists and how much room is left before it.
  */
-export function AccountPanel({ wallet }: { wallet: WalletState | null }) {
+export function AccountPanel({ wallet, trades }: {
+  wallet: WalletState | null;
+  trades: TradesResponse | null;
+}) {
   if (!wallet) return <div className="fade" style={{ padding: 10 }}>Account state unavailable.</div>;
 
   const used = wallet.dailyLossUsed * 100;
@@ -125,6 +129,21 @@ export function AccountPanel({ wallet }: { wallet: WalletState | null }) {
           {wallet.sessionPnlUsd >= 0 ? "+" : "−"}{formatUsd(Math.abs(wallet.sessionPnlUsd))}
         </span></div>
       <div className="kv"><span className="mut">In positions</span><span>{formatUsd(wallet.notionalUsd)}</span></div>
+      {trades && trades.trades.length > 0 && (
+        <>
+          <div className="kv"><span className="mut">Realised net</span>
+            <span className={trades.netUsd >= 0 ? "up" : "dn"}>
+              {trades.netUsd >= 0 ? "+" : "−"}{formatUsd(Math.abs(trades.netUsd))}
+            </span></div>
+          <div className="kv"><span className="mut">Closed</span>
+            <span className="fade">
+              {trades.wins + trades.losses} · {trades.wins}W {trades.losses}L ·
+              {" "}{((trades.wins / Math.max(1, trades.wins + trades.losses)) * 100).toFixed(0)}%
+            </span></div>
+          <div className="kv"><span className="mut">Fees paid</span>
+            <span className="fade">−{formatUsd(trades.feesUsd)}</span></div>
+        </>
+      )}
 
       <div className="limit">
         <div><div className="k">USED</div><div className="v">{used.toFixed(2)}%</div></div>
@@ -140,7 +159,14 @@ export function AccountPanel({ wallet }: { wallet: WalletState | null }) {
   );
 }
 
-/** Positions. Risk fields lead; PnL is last, which is the order a professional reads. */
+/**
+ * What she is in right now.
+ *
+ * Risk fields lead and PnL is last, which is the order a professional reads:
+ * what is this, where does it end, what does that cost — then how it is doing.
+ * Prices are formatted, never printed raw; an entry of 62700.42970700634 is a
+ * float that escaped, not a price.
+ */
 export function PositionsPanel({ wallet }: { wallet: WalletState | null }) {
   const rows = wallet?.positions ?? [];
   if (rows.length === 0) {
@@ -148,33 +174,85 @@ export function PositionsPanel({ wallet }: { wallet: WalletState | null }) {
       <div style={{ padding: 12 }}>
         <div className="mut" style={{ fontSize: "var(--t-10)" }}>No open positions.</div>
         <div className="fade" style={{ fontSize: "var(--t-9)", marginTop: 4, lineHeight: 1.5 }}>
-          When she opens one it appears here with its stop, liquidation price and the share of
-          equity at risk — before its PnL.
+          When she opens one it appears here with its stop and the dollars at risk —
+          before its PnL.
         </div>
       </div>
     );
   }
   return (
-    <table>
+    <table className="pos">
       <thead><tr>
-        <th>SYM</th><th>SIDE</th><th className="r">SIZE</th><th className="r">ENTRY</th>
-        <th className="r">MARK</th><th className="r">STOP</th><th className="r">RISK</th>
+        <th>SYMBOL</th><th className="r">ENTRY</th><th className="r">MARK</th>
+        <th className="r">STOP</th><th className="r">RISK</th>
         <th className="r">AGE</th><th className="r">UPNL</th>
       </tr></thead>
       <tbody>
         {rows.map((p) => (
           <tr key={p.asset}>
-            <td>{p.asset}</td>
-            <td>{p.side === "long" ? "LONG" : "SHORT"}</td>
-            <td className="r">{Number(p.size).toLocaleString("en-US", { maximumFractionDigits: 4 })}</td>
-            <td className="r">{p.entryPx}</td>
-            <td className="r">{p.markPx}</td>
+            <td>
+              <span className="sym">{p.asset}</span>{" "}
+              <span className={p.side === "long" ? "sd long" : "sd short"}>
+                {p.side === "long" ? "LONG" : "SHORT"}
+              </span>
+            </td>
+            <td className="r">{formatPx(p.entryPx)}</td>
+            <td className="r">{formatPx(p.markPx)}</td>
             {/* An unprotected position is stated, never left blank. */}
-            <td className="r">{p.stopPx ? Number(p.stopPx).toPrecision(6) : "NONE"}</td>
-            <td className="r">{p.riskUsd === null ? "—" : `−${p.riskUsd.toFixed(0)}`}</td>
-            <td className="r">{held(p.openedAt)}</td>
+            <td className="r">{p.stopPx ? formatPx(p.stopPx) : <b className="dn">NONE</b>}</td>
+            <td className="r fade">{p.riskUsd === null ? "—" : `−$${p.riskUsd.toFixed(0)}`}</td>
+            <td className="r fade">{held(p.openedAt)}</td>
             <td className={`r ${p.unrealizedPnlUsd >= 0 ? "up" : "dn"}`}>
-              {p.unrealizedPnlUsd >= 0 ? "+" : "−"}{Math.abs(p.unrealizedPnlUsd).toFixed(2)}
+              {p.unrealizedPnlUsd >= 0 ? "+" : "−"}${Math.abs(p.unrealizedPnlUsd).toFixed(2)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/**
+ * What the decisions were actually worth.
+ *
+ * A terminal showing only open risk lets a run look good by never closing
+ * anything, and one showing only reasoning never has to be right. Net is shown
+ * beside gross because fees are the whole argument for trading as a maker, and
+ * hiding them inside one number removes the ability to check it.
+ */
+export function TradesPanel({ data }: { data: TradesResponse | null }) {
+  if (!data || data.trades.length === 0) {
+    return (
+      <div style={{ padding: 12 }}>
+        <div className="mut" style={{ fontSize: "var(--t-10)" }}>No closed trades yet.</div>
+        <div className="fade" style={{ fontSize: "var(--t-9)", marginTop: 4, lineHeight: 1.5 }}>
+          Each one appears here when it closes, with what it made after fees and how
+          long she held it.
+        </div>
+      </div>
+    );
+  }
+  return (
+    <table className="pos">
+      <thead><tr>
+        <th>SYMBOL</th><th className="r">ENTRY</th><th className="r">EXIT</th>
+        <th className="r">HELD</th><th className="r">FEES</th><th className="r">NET</th>
+      </tr></thead>
+      <tbody>
+        {data.trades.map((t: Trade) => (
+          <tr key={`${t.asset}-${t.closedAt}`}>
+            <td>
+              <span className="sym">{t.asset}</span>{" "}
+              <span className={t.side === "long" ? "sd long" : "sd short"}>
+                {t.side === "long" ? "LONG" : "SHORT"}
+              </span>
+            </td>
+            <td className="r">{formatPx(t.entryPx)}</td>
+            <td className="r">{formatPx(t.exitPx)}</td>
+            <td className="r fade">{duration(t.heldMs)}</td>
+            <td className="r fade">${t.feesUsd.toFixed(2)}</td>
+            <td className={`r ${t.netUsd >= 0 ? "up" : "dn"}`}>
+              {t.netUsd >= 0 ? "+" : "−"}${Math.abs(t.netUsd).toFixed(2)}
             </td>
           </tr>
         ))}
@@ -185,7 +263,11 @@ export function PositionsPanel({ wallet }: { wallet: WalletState | null }) {
 
 /** How long she has held it. Holds are meant to be long, so this is a claim. */
 function held(openedAt: number): string {
-  const m = Math.max(0, Math.round((Date.now() - openedAt) / 60000));
+  return duration(Date.now() - openedAt);
+}
+
+function duration(ms: number): string {
+  const m = Math.max(0, Math.round(ms / 60000));
   if (m < 60) return `${m}m`;
   const h = Math.floor(m / 60);
   return h < 24 ? `${h}h${String(m % 60).padStart(2, "0")}` : `${Math.floor(h / 24)}d${h % 24}h`;

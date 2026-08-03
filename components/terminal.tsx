@@ -5,11 +5,11 @@ import {
   UNIVERSE, dayChange, fetchUniverse, formatPx, fundingAnnualPct, type AssetSnapshot,
 } from "@/lib/venue";
 import {
-  fetchActivity, fetchPainMap, fetchWallet,
-  type Decision, type PainMap, type WalletState,
+  fetchActivity, fetchPainMap, fetchTrades, fetchWallet,
+  type Decision, type PainMap, type TradesResponse, type WalletState,
 } from "@/lib/painmap";
 import { Chain, steps } from "@/components/chain";
-import { AccountPanel, Age, BookPanel, PainMapPanel, PositionsPanel } from "@/components/panels";
+import { AccountPanel, Age, BookPanel, PainMapPanel, PositionsPanel, TradesPanel } from "@/components/panels";
 import { Chart, INTERVALS, type Interval } from "@/components/chart";
 
 /**
@@ -59,6 +59,11 @@ export function Terminal() {
   const [wallet, setWallet] = useState<WalletState | null>(null);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [selected, setSelected] = useState(0);
+  const [trades, setTrades] = useState<TradesResponse | null>(null);
+  /** Which half of her book: what she is in, or what it was worth. */
+  const [book, setBook] = useState<"open" | "closed">("open");
+  /** A feed of every consultation buries the few that became trades. */
+  const [onlyTrades, setOnlyTrades] = useState(false);
   const [ages, setAges] = useState<{ mkt: number | null; pm: number | null; acct: number | null }>(
     { mkt: null, pm: null, acct: null },
   );
@@ -111,13 +116,19 @@ export function Terminal() {
         setAges((p) => ({ ...p, acct: performance.now() - t }));
       }).catch(() => {});
       void fetchActivity().then((d) => alive && setDecisions(d.decisions ?? [])).catch(() => {});
+      void fetchTrades().then((t) => alive && setTrades(t)).catch(() => {});
     };
     load();
     const id = setInterval(load, 10000);
     return () => { alive = false; clearInterval(id); };
   }, []);
 
-  const current = decisions[selected];
+  // A decision that produced a position is the one worth finding. Holds are
+  // shown by default because declining is a real decision, but they must not
+  // make the trades unfindable.
+  const shown = onlyTrades ? decisions.filter((d) => d.action !== "hold") : decisions;
+  const current = shown[Math.min(selected, Math.max(0, shown.length - 1))];
+  const tradeCount = decisions.filter((d) => d.action !== "hold").length;
 
   /* Only clusters large enough to matter reach the chart. Drawing every level
      would turn her signal into an indicator, which is the opposite of the
@@ -215,12 +226,26 @@ export function Terminal() {
         <div className="col col-rail">
           <div className="panel">
             <div className="ph"><span>ACCOUNT</span><span className="sp" /><Age ms={ages.acct} /></div>
-            <div className="pb"><AccountPanel wallet={wallet} /></div>
+            <div className="pb"><AccountPanel wallet={wallet} trades={trades} /></div>
           </div>
           <div className="panel">
-            <div className="ph"><span>OPEN POSITIONS</span><span className="sp" />
-              <span className="fade">{wallet?.positions.length ?? 0}</span></div>
-            <div className="pb"><PositionsPanel wallet={wallet} /></div>
+            <div className="ph">
+              <button className={book === "open" ? "tab on" : "tab"} onClick={() => setBook("open")}>
+                OPEN POSITIONS <b>{wallet?.positions.length ?? 0}</b>
+              </button>
+              <button className={book === "closed" ? "tab on" : "tab"} onClick={() => setBook("closed")}>
+                CLOSED <b>{trades ? trades.wins + trades.losses : 0}</b>
+              </button>
+              <span className="sp" />
+              {trades && trades.trades.length > 0 && (
+                <span className={trades.netUsd >= 0 ? "up" : "dn"}>
+                  {trades.netUsd >= 0 ? "+" : "−"}${Math.abs(trades.netUsd).toFixed(2)} net
+                </span>
+              )}
+            </div>
+            <div className="pb">
+              {book === "open" ? <PositionsPanel wallet={wallet} /> : <TradesPanel data={trades} />}
+            </div>
           </div>
           <div className="panel">
             <div className="ph">
@@ -240,22 +265,30 @@ export function Terminal() {
           <div className="ph">
             <span>DECISION FEED</span>
             <span className="sp" />
-            <span className="fade">EVERY CONSULTATION · INCLUDING HOLDS</span>
+            <button className={onlyTrades ? "tab" : "tab on"} onClick={() => setOnlyTrades(false)}>
+              ALL <b>{decisions.length}</b>
+            </button>
+            <button className={onlyTrades ? "tab on" : "tab"} onClick={() => setOnlyTrades(true)}>
+              TRADES ONLY <b>{tradeCount}</b>
+            </button>
           </div>
           <div className="pb">
-            {decisions.length === 0 ? (
+            {shown.length === 0 ? (
               <div className="empty">
-                <div className="mut">No new decisions.</div>
+                <div className="mut">
+                  {onlyTrades ? "No trades in this window." : "No new decisions."}
+                </div>
                 <div className="fade">
-                  Lyra is observing the market. She consults the model when positioning
-                  shifts materially or price approaches a forced-flow cluster.
+                  {onlyTrades
+                    ? "She consulted the model and declined every time. Declining is a decision — switch to ALL to read the reasoning."
+                    : "Lyra is observing the market. She consults the model when positioning shifts materially or price approaches a forced-flow cluster."}
                 </div>
               </div>
             ) : (
-              decisions.map((d, i) => (
+              shown.map((d, i) => (
                 <button
                   key={d.id}
-                  className="dec"
+                  className={d.action === "hold" ? "dec" : "dec traded"}
                   aria-current={i === selected}
                   onClick={() => setSelected(i)}
                 >

@@ -60,7 +60,35 @@ async function get<T>(path: string): Promise<T> {
 }
 
 export const fetchPainMap = (asset: string) => get<PainMap>(`/painmap?asset=${asset}`);
-export const fetchActivity = () => get<ActivityResponse>("/activity?limit=25");
+export const fetchActivity = () => get<ActivityResponse>("/activity?limit=40");
+export const fetchTrades = () => get<TradesResponse>("/trades?limit=40");
+
+/** A closed trade. What a decision was actually worth. */
+export type Trade = {
+  asset: string;
+  side: "long" | "short";
+  size: string;
+  entryPx: string;
+  exitPx: string;
+  /** Gross, before fees. Kept separate so net can be checked, not trusted. */
+  pnlUsd: number;
+  feesUsd: number;
+  netUsd: number;
+  openedAt: number;
+  closedAt: number;
+  heldMs: number;
+  reasoningId: string | null;
+  recordId: string | null;
+};
+
+export type TradesResponse = {
+  trades: Trade[];
+  realisedUsd: number;
+  feesUsd: number;
+  netUsd: number;
+  wins: number;
+  losses: number;
+};
 
 export type WalletState = {
   trading: boolean;

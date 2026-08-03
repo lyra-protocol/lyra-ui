@@ -232,6 +232,27 @@ canvas { display: block; }
 .rec .v { margin-left: 5px; }
 .tag { border: 1px solid var(--rule); padding: 0 5px; font-size: var(--t-8); }
 
+/* Tabs live in a panel header and read as part of it, not as buttons on it. */
+.tab { font: inherit; font-size: var(--t-9); letter-spacing: .06em; padding: 1px 6px;
+       border: none; background: none; color: var(--ink-3); cursor: pointer; }
+.tab b { font-weight: 400; margin-left: 3px; }
+.tab:hover { color: var(--ink); }
+.tab.on { color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
+
+/* A decision that became a position is the one worth finding in a feed that is
+   mostly holds. One rule, at the edge — enough to scan by, not a highlight. */
+.dec.traded { box-shadow: inset 3px 0 0 var(--rule); }
+.dec.traded[aria-current="true"] { box-shadow: inset 3px 0 0 var(--ink); }
+
+/* ── positions and trades ───────────────────────────────────────────────── */
+
+table.pos { font-size: var(--t-10); }
+table.pos td { padding: 5px 8px; }
+table.pos .sym { font-size: var(--t-11); }
+/* Side is a label, not a colour: colour means PnL direction and nothing else. */
+table.pos .sd { font-size: var(--t-8); border: 1px solid var(--rule); padding: 0 3px; }
+table.pos .sd.short { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
 /* ── expanded decision ──────────────────────────────────────────────────── */
 
 .exp-hero { padding: 11px 13px; border-bottom: 1px solid var(--rule); }
