@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   // The nonce must be one we issued, recently. Without this the same signature
   // is replayable forever.
   const nonce = /^Nonce: (.+)$/m.exec(message)?.[1];
-  if (!nonce || !(await nonceIsValid(nonce))) {
+  if (!nonce || !(await nonceIsValid(nonce, address))) {
     return NextResponse.json(
       { error: "bad_nonce", detail: "That sign-in request has expired. Ask for a new one." },
       { status: 401 },

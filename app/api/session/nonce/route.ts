@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     );
   }
   try {
-    const nonce = await issueNonce();
+    const nonce = await issueNonce(address);
     return NextResponse.json(
       { nonce, message: signInMessage(address, nonce) },
       { headers: { "cache-control": "no-store" } },

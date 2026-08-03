@@ -21,8 +21,17 @@ const ENC = new TextEncoder();
 /** Twelve hours: long enough to be usable, short enough that expiry is the revocation. */
 export const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
-/** Nonces are only allowed a few minutes between issue and signature. */
-export const NONCE_TTL_MS = 10 * 60 * 1000;
+/**
+ * How long a nonce stays good.
+ *
+ * Without storage a nonce cannot be marked used, so it is replayable until it
+ * expires — narrow rather than eliminated. Five minutes is ample for a human to
+ * approve a wallet prompt and short enough that a signature captured from a log
+ * is stale before it is useful. Binding the nonce to an address (below) means
+ * even inside that window it can only mint a session for the address that
+ * already consented.
+ */
+export const NONCE_TTL_MS = 5 * 60 * 1000;
 
 export const SIGN_IN_DOMAIN = "lyrabuild.xyz";
 
@@ -73,17 +82,24 @@ function equal(a: string, b: string): boolean {
  * The random half stops two visitors ever being handed the same string; the
  * timestamp half stops a signature from last week being presented today.
  */
-export async function issueNonce(): Promise<string> {
+export async function issueNonce(address: string): Promise<string> {
   const rand = b64url(crypto.getRandomValues(new Uint8Array(16)));
-  const body = `${rand}.${Date.now()}`;
+  // The address is inside the MAC, so a nonce issued for one address cannot be
+  // presented in a message claiming another.
+  const body = `${rand}.${address.toLowerCase()}.${Date.now()}`;
   return `${body}.${await hmac(body)}`;
 }
 
-export async function nonceIsValid(nonce: string, now = Date.now()): Promise<boolean> {
+export async function nonceIsValid(
+  nonce: string,
+  address: string,
+  now = Date.now(),
+): Promise<boolean> {
   const parts = nonce.split(".");
-  if (parts.length !== 3) return false;
-  const [rand, issued, mac] = parts as [string, string, string];
-  if (!equal(mac, await hmac(`${rand}.${issued}`))) return false;
+  if (parts.length !== 4) return false;
+  const [rand, addr, issued, mac] = parts as [string, string, string, string];
+  if (addr !== address.toLowerCase()) return false;
+  if (!equal(mac, await hmac(`${rand}.${addr}.${issued}`))) return false;
   const at = Number(issued);
   return Number.isFinite(at) && now - at >= 0 && now - at < NONCE_TTL_MS;
 }
