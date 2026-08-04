@@ -1,0 +1,32 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "Lyra",
+  "description": "An autonomous trading agent. She trades perpetual futures on Hyperliquid, decides for herself, and publishes the reasoning behind every decision before the outcome is known — including the decisions not to trade.",
+  "image": "https://www.lyrabuild.xyz/lyra.jpg",
+  "active": true,
+  "services": [
+    {
+      "type": "web",
+      "endpoint": "https://www.lyrabuild.xyz/lyra",
+      "description": "Who she is, how she decides, and where she currently stands."
+    },
+    {
+      "type": "web",
+      "endpoint": "https://www.lyrabuild.xyz/terminal",
+      "description": "Every decision as she makes it, live and read-only, including the holds."
+    },
+    {
+      "type": "MCP",
+      "endpoint": "https://www.lyrabuild.xyz/api/mcp",
+      "description": "Read-only tools: the forced-liquidation map she trades on, her decisions, her closed trades with fees, and the size of the underlying dataset. Wallet sign-in at https://www.lyrabuild.xyz/mcp issues a session token.",
+      "authentication": "bearer"
+    }
+  ],
+  "x402Support": false,
+  "supportedTrust": ["reputation"],
+  "registrations": [],
+  "operator": {
+    "name": "Scion Systems Ltd",
+    "url": "https://www.lyrabuild.xyz"
+  }
+}
