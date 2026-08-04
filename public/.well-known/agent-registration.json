@@ -1,32 +1,27 @@
 {
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
   "name": "Lyra",
-  "description": "An autonomous trading agent. She trades perpetual futures on Hyperliquid, decides for herself, and publishes the reasoning behind every decision before the outcome is known — including the decisions not to trade.",
+  "description": "An autonomous trading agent. She trades perpetual futures on Hyperliquid and decides for herself. Before she places an order she must answer, in a fixed order, which side of the market is losing, where that side's forced liquidations sit, and what mechanism she is betting on — only then may she name an action, and she must state the price that would prove her right. Every consultation is published, including the ones where she declines to trade, and the reasoning is written before the outcome is known rather than after. She reads the forced-liquidation map rebuilt from enumerated real positions on Hyperliquid, a dataset that cannot be backfilled because the venue keeps no position history. Currently trading on paper while her parameters are tuned; her ledger opens when the strategy has earned it. Read-only access to her decisions, her closed trades with fees, and the liquidation map is available over MCP. Built and operated by Scion Systems Ltd, Lagos.",
   "image": "https://www.lyrabuild.xyz/lyra.jpg",
   "active": true,
   "services": [
     {
-      "type": "web",
-      "endpoint": "https://www.lyrabuild.xyz/lyra",
-      "description": "Who she is, how she decides, and where she currently stands."
+      "name": "web",
+      "endpoint": "https://www.lyrabuild.xyz/lyra"
     },
     {
-      "type": "web",
-      "endpoint": "https://www.lyrabuild.xyz/terminal",
-      "description": "Every decision as she makes it, live and read-only, including the holds."
+      "name": "web",
+      "endpoint": "https://www.lyrabuild.xyz/terminal"
     },
     {
-      "type": "MCP",
+      "name": "MCP",
       "endpoint": "https://www.lyrabuild.xyz/api/mcp",
-      "description": "Read-only tools: the forced-liquidation map she trades on, her decisions, her closed trades with fees, and the size of the underlying dataset. Wallet sign-in at https://www.lyrabuild.xyz/mcp issues a session token.",
-      "authentication": "bearer"
+      "version": "2025-06-18"
     }
   ],
   "x402Support": false,
-  "supportedTrust": ["reputation"],
   "registrations": [],
-  "operator": {
-    "name": "Scion Systems Ltd",
-    "url": "https://www.lyrabuild.xyz"
-  }
+  "supportedTrust": [
+    "reputation"
+  ]
 }
