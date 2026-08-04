@@ -774,3 +774,119 @@ th.r, td.r { text-align: right; }
 .ly-sec-b { max-width: 58ch; }
 .ly-intent-row .b { display: flex; flex-direction: column; gap: 4px; max-width: 62ch; }
 .ly-intent-row .b .d { font-size: 14px; line-height: 1.6; color: var(--ink-2); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * LANDING — the hero
+ *
+ * The dark surface. /lyra is the light one, and the two are deliberately
+ * opposite: one argues for her in prose, this one shows a machine running.
+ *
+ * The type does the work. A headline at this scale with tight tracking and
+ * leading below 1 reads as certainty; the same sentence at 32px reads as a
+ * tagline. Everything else on the screen is deliberately quiet so that one
+ * element can be loud — spending the boldness in a single place and keeping
+ * the surroundings restrained is the difference between confident and busy.
+ *
+ * No gradient, no glow, no particles. Every AI landing page has those, which is
+ * exactly why they no longer signal anything.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+.lh {
+  --sans: "Helvetica Neue", Inter, system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --lh-line: rgba(255, 255, 255, .14);
+  --lh-dim:  rgba(255, 255, 255, .52);
+  font-family: var(--sans);
+  background: #08080a;
+  color: #ffffff;
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 0 clamp(22px, 4vw, 56px);
+}
+.lh ::selection { background: #ffffff; color: #08080a; }
+
+/* ── masthead ───────────────────────────────────────────────────────────── */
+
+.lh-top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap;
+  padding: 26px 0 22px; border-bottom: 1px solid var(--lh-line);
+}
+.lh-mark { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.lh-mark .w { font-size: 15px; font-weight: 700; letter-spacing: .2em; }
+.lh-mark .o { font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
+              text-transform: uppercase; color: var(--lh-dim); }
+.lh-meta { display: flex; align-items: center; gap: 12px;
+           font-family: var(--mono); font-size: 10px; letter-spacing: .13em;
+           color: var(--lh-dim); }
+.lh-sep { width: 1px; height: 11px; background: var(--lh-line); }
+.lh-clock { font-variant-numeric: tabular-nums; }
+.lh-dot { width: 6px; height: 6px; border-radius: 50%; background: #55555d; }
+.lh-dot.on { background: #34d399; animation: blink 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .lh-dot.on { animation: none } }
+
+/* ── the claim ──────────────────────────────────────────────────────────── */
+
+/* Headline and supporting copy sit on one baseline band rather than stacked,
+   so the eye lands on the claim and finds the qualification beside it — not
+   after scrolling past it. */
+.lh-body {
+  display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: clamp(30px, 5vw, 84px); align-items: end;
+  padding: clamp(48px, 9vh, 110px) 0 clamp(40px, 7vh, 84px);
+}
+
+.lh-h1 {
+  margin: 0;
+  font-size: clamp(42px, 7.4vw, 112px);
+  line-height: .96;
+  letter-spacing: -.038em;
+  font-weight: 600;
+  text-wrap: balance;
+}
+/* The third line is the whole point of the sentence, so it is the only part
+   given a different weight — emphasis by contrast, not by colour. */
+.lh-h1 em { font-style: normal; font-weight: 300; color: var(--lh-dim); }
+
+.lh-side { display: flex; flex-direction: column; gap: 30px; padding-bottom: 6px; }
+.lh-lede { margin: 0; font-size: clamp(15px, 1.25vw, 18px); line-height: 1.6;
+           color: rgba(255,255,255,.72); max-width: 44ch; }
+
+.lh-cta { display: flex; gap: 12px; flex-wrap: wrap; }
+.lh-btn { display: inline-block; text-decoration: none; padding: 14px 30px;
+          font-size: 14px; letter-spacing: .01em;
+          background: #ffffff; color: #08080a; border: 1px solid #ffffff;
+          transition: background .15s ease, color .15s ease; }
+.lh-btn:hover { background: transparent; color: #ffffff; }
+.lh-btn.ghost { background: transparent; color: #ffffff; border-color: var(--lh-line); }
+.lh-btn.ghost:hover { border-color: #ffffff; }
+
+/* ── the rail ───────────────────────────────────────────────────────────── */
+
+/*
+ * Measured numbers only. If the collector is unreachable these render an em
+ * dash rather than a plausible figure — a landing page that invents its own
+ * metrics is the exact failure this project exists to argue against.
+ */
+.lh-rail {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.5fr);
+  border-top: 1px solid var(--lh-line);
+}
+.lh-cell { padding: 20px 22px 26px 0; display: flex; flex-direction: column; gap: 8px; }
+.lh-cell + .lh-cell { padding-left: 22px; border-left: 1px solid var(--lh-line); }
+.lh-cell .k { font-family: var(--mono); font-size: 9px; letter-spacing: .14em;
+              color: var(--lh-dim); }
+.lh-cell .v { font-family: var(--mono); font-size: clamp(17px, 1.7vw, 24px);
+              font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.lh-cell .n { font-family: var(--mono); font-size: 10px; color: var(--lh-dim); }
+
+@media (max-width: 980px) {
+  .lh-body { grid-template-columns: 1fr; align-items: start;
+             gap: 28px; padding: 44px 0 40px; }
+  .lh-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lh-cell { padding: 16px 16px 20px 0; border-top: 1px solid var(--lh-line); }
+  .lh-cell + .lh-cell { padding-left: 16px; }
+  .lh-cell:nth-child(odd) { border-left: none; padding-left: 0; }
+  .lh-cell.wide { grid-column: 1 / -1; }
+}
