@@ -636,8 +636,8 @@ th.r, td.r { text-align: right; }
 .ly-id-verified { border: 1px solid var(--live); color: var(--live);
                   padding: 1px 7px; letter-spacing: .1em; }
 
-.ly-id-grid { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
-              gap: 0; border: 1px solid var(--ink); }
+.ly-id-grid { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+              gap: 0; border: 1px solid var(--ink); max-width: 880px; }
 .ly-id-num { display: flex; flex-direction: column; justify-content: center; gap: 8px;
              padding: 26px 28px; background: var(--ink); color: var(--paper); }
 .ly-id-num .k { font-family: ui-monospace, Menlo, monospace; font-size: 10px;

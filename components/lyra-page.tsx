@@ -141,7 +141,7 @@ export function LyraPage() {
           </div>
         </div>
         <p className="ly-id-note">
-          The registry is an ERC-721: the wallet holding token 60594 <em>is</em> Lyra. It is her
+          The registry is an ERC-721: the wallet holding token 60594 <em>is</em>{" "}Lyra. It is her
           own wallet and nobody else&rsquo;s, so looking her up reveals nothing about any person.
           The chain says this domain describes agent 60594; this domain says the same back.
           Neither has to be taken on trust.
