@@ -636,18 +636,18 @@ th.r, td.r { text-align: right; }
 .ly-id-verified { border: 1px solid var(--live); color: var(--live);
                   padding: 1px 7px; letter-spacing: .1em; }
 
-.ly-id-grid { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
-              gap: 0; border: 1px solid var(--ink); max-width: 880px; }
-.ly-id-num { display: flex; flex-direction: column; justify-content: center; gap: 8px;
-             padding: 26px 28px; background: var(--ink); color: var(--paper); }
+.ly-id-grid { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+              gap: 0; border: 1px solid var(--ink); max-width: 760px; }
+.ly-id-num { display: flex; flex-direction: column; justify-content: center; gap: 10px;
+             padding: 30px 30px; background: var(--ink); color: var(--paper); }
 .ly-id-num .k { font-family: ui-monospace, Menlo, monospace; font-size: 10px;
                 letter-spacing: .16em; opacity: .62; }
-.ly-id-num .v { font-family: ui-monospace, Menlo, monospace; font-size: 42px;
+.ly-id-num .v { font-family: ui-monospace, Menlo, monospace; font-size: 52px;
                 line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 
 .ly-id-rows { display: grid; }
-.ly-id-row { display: grid; grid-template-columns: 116px minmax(0, 1fr) 20px;
-             gap: 16px; align-items: baseline; padding: 13px 22px;
+.ly-id-row { display: grid; grid-template-columns: 104px minmax(0, 1fr) 18px;
+             gap: 14px; align-items: baseline; padding: 15px 22px;
              border-bottom: 1px solid var(--rule); text-decoration: none; color: inherit; }
 .ly-id-rows .ly-id-row:last-child { border-bottom: none; }
 .ly-id-row:hover { background: var(--wash); }
@@ -664,8 +664,9 @@ th.r, td.r { text-align: right; }
 /* ── intent, with its status stated ─────────────────────────────────────── */
 
 .ly-intent { border-top: 1px solid var(--rule); margin: 6px 0 0; }
-.ly-intent-row { display: grid; grid-template-columns: 92px minmax(0, 1fr);
-                 gap: 18px; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+.ly-intent-row { display: grid; grid-template-columns: 84px 190px minmax(0, 1fr);
+                 gap: 18px; padding: 11px 0; align-items: baseline;
+                 border-bottom: 1px solid var(--rule); }
 .ly-intent-row .s { font-family: ui-monospace, Menlo, monospace; font-size: 9px;
                     letter-spacing: .12em; padding: 2px 0; height: fit-content;
                     text-align: center; border: 1px solid var(--rule); color: var(--ink-3); }
@@ -674,9 +675,8 @@ th.r, td.r { text-align: right; }
 .ly-intent-row.live .s { border-color: var(--ink); background: var(--ink); color: var(--paper); }
 .ly-intent-row.tuning .s { border-color: var(--ink-2); color: var(--ink-2); }
 .ly-intent-row.intended .s { border-style: dashed; }
-.ly-intent-row .b { display: flex; flex-direction: column; gap: 4px; }
-.ly-intent-row .b b { font-size: 15px; font-weight: 600; }
-.ly-intent-row .b span { font-size: 14px; line-height: 1.62; color: var(--ink-2); }
+.ly-intent-row b { font-size: 14px; font-weight: 600; }
+.ly-intent-row .d { font-size: 14px; line-height: 1.55; color: var(--ink-2); }
 
 @media (max-width: 900px) {
   .ly-id { padding: 30px 22px 34px; }
@@ -685,6 +685,30 @@ th.r, td.r { text-align: right; }
   .ly-id-num .v { font-size: 34px; }
   .ly-id-row { grid-template-columns: 100px minmax(0, 1fr); gap: 10px; padding: 11px 16px; }
   .ly-id-row .go { display: none; }
-  .ly-intent-row { grid-template-columns: 1fr; gap: 7px; }
-  .ly-intent-row .s { width: 92px; }
+  .ly-intent-row { grid-template-columns: 1fr; gap: 5px; }
+  .ly-intent-row .s { width: 84px; }
+}
+
+/* ── the hub's reason to exist ──────────────────────────────────────────── */
+
+/*
+ * An index of links needs a reason to click any of them. Two columns rather
+ * than one long column: the two halves of the argument are independent — why
+ * she is built this way, and what she can see that others cannot — and setting
+ * them side by side says that faster than a paragraph could.
+ */
+.hub-why {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 44px; padding: 8px 0 58px; border-bottom: 1px solid var(--ink);
+  margin-bottom: 4px;
+}
+.hub-why-b h2 { font-size: 21px; line-height: 1.25; margin: 0 0 14px;
+                font-weight: 600; letter-spacing: -.014em; }
+.hub-why-b p { font-size: 15px; line-height: 1.66; color: var(--ink-2);
+               margin: 0 0 14px; max-width: 54ch; }
+.hub-why-b p:last-child { margin-bottom: 0; }
+.hub-why-b em { font-style: italic; color: var(--ink); }
+
+@media (max-width: 800px) {
+  .hub-why { gap: 32px; padding: 4px 0 40px; }
 }

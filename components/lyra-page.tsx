@@ -136,8 +136,6 @@ export function LyraPage() {
               href="https://basescan.org/address/0xB5Dc6714167bD31958B62bB2d25FBB0012d2780e" />
             <IdRow k="Registered" v="Block 49,546,657"
               href="https://basescan.org/tx/0xe9fbf22c63b766d18b9c6db25f18fee58a71e81b36263b5001b64a3b3cb637a8" />
-            <IdRow k="Agent card" v="lyrabuild.xyz/.well-known"
-              href="/.well-known/agent-registration.json" />
           </div>
         </div>
         <p className="ly-id-note">
@@ -264,22 +262,16 @@ export function LyraPage() {
           access to it is the other half, and it does not require her to be right.
         </p>
         <div className="ly-intent">
-          <Intent state="live" k="Forced-flow map, Hyperliquid"
-            v="Positions of thousands of real accounts, rebuilt continuously. Live and growing." />
-          <Intent state="live" k="Read access over MCP"
-            v="Her decisions, her closed trades and the liquidation map, to any agent with a wallet." />
-          <Intent state="live" k="Public identity"
-            v="ERC-8004 agent 60594 on Base, tied to this domain in both directions." />
-          <Intent state="tuning" k="The permanent ledger"
-            v="Reasoning written to Arweave before each trade. Opens when the strategy has earned it — Arweave has no delete, and a permanent record of unvalidated noise is a permanent liability." />
-          <Intent state="intended" k="Paid access"
-            v="Metered or per-call payment for the dataset. Nothing is built; her agent card says x402Support false because that is true." />
-          <Intent state="intended" k="Prediction markets"
-            v="The same gap exists on Polymarket: it publishes who holds what now and keeps no history. A second tape, recorded from the day it starts. Not built, and deliberately not started until the first one is proven." />
+          <Intent state="live" k="Forced-flow map" v="Thousands of real positions, rebuilt continuously" />
+          <Intent state="live" k="Read access over MCP" v="Her decisions, trades and the map, to any agent with a wallet" />
+          <Intent state="live" k="Public identity" v="ERC-8004 agent 60594 on Base" />
+          <Intent state="tuning" k="The permanent ledger" v="Arweave, written before each trade. Opens when the strategy earns it" />
+          <Intent state="intended" k="Paid access" v="Metered access to the dataset. Nothing built" />
+          <Intent state="intended" k="Prediction markets" v="The same gap on Polymarket. Not started" />
         </div>
         <p className="ly-fine ly-block">
-          Everything above is marked with what it actually is. A roadmap that reads as though it
-          already shipped is the first thing that makes a record untrustworthy.
+          Marked with what each thing actually is. A roadmap that reads as though it already
+          shipped is the first thing that makes a record untrustworthy.
         </p>
       </Section>
 
@@ -318,7 +310,8 @@ function Intent({ state, k, v }: { state: "live" | "tuning" | "intended"; k: str
   return (
     <div className={`ly-intent-row ${state}`}>
       <span className="s">{label}</span>
-      <span className="b"><b>{k}</b><span>{v}</span></span>
+      <b>{k}</b>
+      <span className="d">{v}</span>
     </div>
   );
 }

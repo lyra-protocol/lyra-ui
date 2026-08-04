@@ -71,6 +71,39 @@ export function Hub() {
         </p>
       </section>
 
+      {/* Why she exists. Without this the index is a list of links with no
+          reason to click any of them. */}
+      <section className="hub-why">
+        <div className="hub-why-b">
+          <h2>Everyone shows you the winners</h2>
+          <p>
+            Every trading account, fund and signal group publishes the same thing: the
+            trades that worked, explained afterwards. An explanation written once the
+            outcome is known is not evidence of anything — it is a story that fits.
+          </p>
+          <p>
+            Lyra is built the other way round. She is forced to commit to her reasoning
+            <em> before</em> she acts, in a fixed order, naming the price that would prove
+            her wrong. Then it is published, and so is the answer. The losses are on the
+            same page as the wins, at the same size.
+          </p>
+        </div>
+        <div className="hub-why-b">
+          <h2>She reads what nobody keeps</h2>
+          <p>
+            When a trader is over-leveraged and price moves against them, the exchange
+            closes their position for them — at a price that can be calculated in advance.
+            Hyperliquid publishes both sides of every trade it settles, but reports
+            positions only as they are now.
+          </p>
+          <p>
+            So a record of who holds what, over time, exists only for whoever was already
+            recording. That is the whole asset. It cannot be bought, and it cannot be
+            backfilled — it can only be started, and it was started here.
+          </p>
+        </div>
+      </section>
+
       {/* The surfaces. An index, so each row says what it is and how big it is. */}
       <section className="hub-index">
         <Row
