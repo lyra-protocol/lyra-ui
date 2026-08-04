@@ -664,9 +664,8 @@ th.r, td.r { text-align: right; }
 /* ── intent, with its status stated ─────────────────────────────────────── */
 
 .ly-intent { border-top: 1px solid var(--rule); margin: 6px 0 0; }
-.ly-intent-row { display: grid; grid-template-columns: 84px 190px minmax(0, 1fr);
-                 gap: 18px; padding: 11px 0; align-items: baseline;
-                 border-bottom: 1px solid var(--rule); }
+.ly-intent-row { display: grid; grid-template-columns: 84px minmax(0, 1fr);
+                 gap: 18px; padding: 14px 0; border-bottom: 1px solid var(--rule); }
 .ly-intent-row .s { font-family: ui-monospace, Menlo, monospace; font-size: 9px;
                     letter-spacing: .12em; padding: 2px 0; height: fit-content;
                     text-align: center; border: 1px solid var(--rule); color: var(--ink-3); }
@@ -675,8 +674,7 @@ th.r, td.r { text-align: right; }
 .ly-intent-row.live .s { border-color: var(--ink); background: var(--ink); color: var(--paper); }
 .ly-intent-row.tuning .s { border-color: var(--ink-2); color: var(--ink-2); }
 .ly-intent-row.intended .s { border-style: dashed; }
-.ly-intent-row b { font-size: 14px; font-weight: 600; }
-.ly-intent-row .d { font-size: 14px; line-height: 1.55; color: var(--ink-2); }
+.ly-intent-row b { font-size: 15px; font-weight: 600; }
 
 @media (max-width: 900px) {
   .ly-id { padding: 30px 22px 34px; }
@@ -712,3 +710,67 @@ th.r, td.r { text-align: right; }
 @media (max-width: 800px) {
   .hub-why { gap: 32px; padding: 4px 0 40px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * The proof band.
+ *
+ * One aesthetic conviction, executed at both ends: the page alternates between
+ * editorial light, where a claim is made, and instrument dark, where the live
+ * data settles it. The dark is not a style choice — it is the terminal, which
+ * is the actual product, quoted inside the page that argues for it.
+ *
+ * This band carries her most recent real decision. It is the single most
+ * convincing thing on the site and it was previously buried a click away.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+.ly-proof {
+  background: var(--ink); color: var(--paper);
+  padding: 34px 60px 38px; border-bottom: 1px solid var(--ink);
+}
+.ly-proof-head { display: flex; justify-content: space-between; align-items: center;
+                 gap: 16px; flex-wrap: wrap; margin-bottom: 26px; }
+.ly-proof-head .k { font-family: ui-monospace, Menlo, monospace; font-size: 10px;
+                    letter-spacing: .16em; display: flex; align-items: center; gap: 9px; }
+.ly-proof-head .fade { color: rgba(255,255,255,.5); }
+
+/* Four commitments across, joined, in the order she was forced to make them. */
+.ly-proof-chain { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+                  gap: 0; max-width: 1340px; }
+.ly-pstep { position: relative; padding-right: 26px; }
+.ly-pstep .n { font-family: ui-monospace, Menlo, monospace; font-size: 10px;
+               color: rgba(255,255,255,.45); }
+.ly-pstep .q { display: block; font-family: ui-monospace, Menlo, monospace;
+               font-size: 10px; letter-spacing: .1em; color: rgba(255,255,255,.45);
+               margin: 4px 0 10px; }
+.ly-pstep .a { display: block; font-size: clamp(15px, 1.5vw, 21px); line-height: 1.24;
+               letter-spacing: -.01em; }
+/* The rule runs between steps, not under the last one. */
+.ly-pstep::after { content: ""; position: absolute; left: 0; right: 26px; top: 22px;
+                   height: 1px; background: rgba(255,255,255,.18); }
+.ly-pstep:last-child { padding-right: 0; }
+.ly-pstep:last-child::after { display: none; }
+
+.ly-proof-foot { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+                 margin-top: 26px; padding-top: 18px;
+                 border-top: 1px solid rgba(255,255,255,.18);
+                 font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+.ly-proof-foot .sp { flex: 1; }
+.ly-proof-foot .fade { color: rgba(255,255,255,.5); }
+.ly-proof-empty { font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+                  color: rgba(255,255,255,.5); padding: 20px 0; }
+/* The live dot has to survive being on black. */
+.ly-proof .ly-dot.on { background: #34d399; }
+
+@media (max-width: 900px) {
+  .ly-proof { padding: 24px 22px 28px; }
+  .ly-proof-chain { grid-template-columns: 1fr; gap: 18px; }
+  .ly-pstep { padding-right: 0; }
+  .ly-pstep::after { right: 0; }
+  .ly-pstep:not(:last-child) { padding-bottom: 18px; }
+}
+
+/* Body copy in the numbered sections was running the full column and reading
+   long. Capping the measure is the whole fix. */
+.ly-sec-b { max-width: 58ch; }
+.ly-intent-row .b { display: flex; flex-direction: column; gap: 4px; max-width: 62ch; }
+.ly-intent-row .b .d { font-size: 14px; line-height: 1.6; color: var(--ink-2); }

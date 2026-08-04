@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { steps } from "@/components/chain";
 import {
   fetchActivity, fetchTrades, fetchWallet,
   type Decision, type TradesResponse, type WalletState,
@@ -21,6 +22,15 @@ import {
  * states losses at the same size as gains, and nothing here is illustrative —
  * every number is the same one the terminal is reading.
  */
+
+/** How long ago, in words. A timestamp does not read as "happening now". */
+function ago(at: number): string {
+  const m = Math.max(0, Math.round((Date.now() - at) / 60000));
+  if (m < 1) return "seconds ago";
+  if (m < 60) return `${m} minute${m === 1 ? "" : "s"} ago`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h} hour${h === 1 ? "" : "s"} ago` : `${Math.floor(h / 24)}d ago`;
+}
 
 const nf = (n: number, d = 2) =>
   n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -46,6 +56,7 @@ export function LyraPage() {
   const closed = trades ? trades.wins + trades.losses : 0;
   const winRate = closed > 0 ? (trades!.wins / closed) * 100 : null;
   const held = decisions.filter((d) => d.action === "hold").length;
+  const latest = decisions[0];
 
   return (
     <main className="ly">
@@ -116,6 +127,39 @@ export function LyraPage() {
             </span>
           </div>
         </div>
+      </section>
+
+      {/* ── the proof, before any of the argument ──────────────────── */}
+      <section className="ly-proof">
+        <div className="ly-proof-head">
+          <span className="k"><span className="ly-dot on" />HER MOST RECENT DECISION</span>
+          <span className="k fade">{latest ? ago(latest.at) : "waiting"}</span>
+        </div>
+        {latest ? (
+          <>
+            <div className="ly-proof-chain">
+              {steps(latest).map((st) => (
+                <div className="ly-pstep" key={st.n}>
+                  <span className="n">{st.n}</span>
+                  <span className="q">{st.k}</span>
+                  <span className="a">{st.v}</span>
+                </div>
+              ))}
+            </div>
+            <div className="ly-proof-foot">
+              <span>{latest.asset}</span>
+              <span className="fade">conviction {latest.conviction.toFixed(2)}</span>
+              <span className="sp" />
+              <span className="fade">
+                {latest.action === "hold"
+                  ? "She declined to trade, and said why."
+                  : "Written before the outcome was known."}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="ly-proof-empty">Connecting to her decision feed…</div>
+        )}
       </section>
 
       {/* ── who she is, provably ───────────────────────────────────── */}
@@ -262,12 +306,18 @@ export function LyraPage() {
           access to it is the other half, and it does not require her to be right.
         </p>
         <div className="ly-intent">
-          <Intent state="live" k="Forced-flow map" v="Thousands of real positions, rebuilt continuously" />
-          <Intent state="live" k="Read access over MCP" v="Her decisions, trades and the map, to any agent with a wallet" />
-          <Intent state="live" k="Public identity" v="ERC-8004 agent 60594 on Base" />
-          <Intent state="tuning" k="The permanent ledger" v="Arweave, written before each trade. Opens when the strategy earns it" />
-          <Intent state="intended" k="Paid access" v="Metered access to the dataset. Nothing built" />
-          <Intent state="intended" k="Prediction markets" v="The same gap on Polymarket. Not started" />
+          <Intent state="live" k="Forced-flow map, Hyperliquid"
+            v="The positions of thousands of real accounts, rebuilt continuously and growing every minute." />
+          <Intent state="live" k="Read access over MCP"
+            v="Her decisions, her closed trades and the liquidation map, available to any agent with a wallet." />
+          <Intent state="live" k="Public identity"
+            v="ERC-8004 agent 60594 on Base, tied to this domain in both directions." />
+          <Intent state="tuning" k="The permanent ledger"
+            v="Her reasoning written to Arweave before each trade. It opens when the strategy has earned it — Arweave has no delete, and a permanent record of unvalidated noise is a permanent liability." />
+          <Intent state="intended" k="Paid access"
+            v="Metered or per-call payment for the dataset. Nothing is built yet, which is why her agent card reads x402Support false." />
+          <Intent state="intended" k="Prediction markets"
+            v="The same gap exists on Polymarket — it publishes who holds what now and keeps no history. A second tape, recorded from the day it starts. Not begun, and deliberately not begun until the first one is proven." />
         </div>
         <p className="ly-fine ly-block">
           Marked with what each thing actually is. A roadmap that reads as though it already
@@ -310,8 +360,7 @@ function Intent({ state, k, v }: { state: "live" | "tuning" | "intended"; k: str
   return (
     <div className={`ly-intent-row ${state}`}>
       <span className="s">{label}</span>
-      <b>{k}</b>
-      <span className="d">{v}</span>
+      <span className="b"><b>{k}</b><span className="d">{v}</span></span>
     </div>
   );
 }
