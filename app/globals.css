@@ -617,3 +617,74 @@ th.r, td.r { text-align: right; }
   .mcp-step { grid-template-columns: 1fr; gap: 8px; padding: 32px 0; }
   .mcp-tool { grid-template-columns: 1fr; gap: 4px; }
 }
+
+/* ── her identity, as a credential rather than a paragraph ──────────────── */
+
+/*
+ * Deliberately the only object on the page that looks like a document. It
+ * breaks the rhythm of prose sections, and it should: everything else on this
+ * page is an argument, and this is the one part that is simply a fact anyone
+ * can check.
+ */
+.ly-id {
+  max-width: 1460px; margin-inline: auto; padding: 40px 60px 46px;
+  border-bottom: 1px solid var(--rule);
+}
+.ly-id-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+              font-family: ui-monospace, Menlo, monospace; font-size: 10px;
+              letter-spacing: .14em; color: var(--ink-3); margin-bottom: 18px; }
+.ly-id-verified { border: 1px solid var(--live); color: var(--live);
+                  padding: 1px 7px; letter-spacing: .1em; }
+
+.ly-id-grid { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+              gap: 0; border: 1px solid var(--ink); }
+.ly-id-num { display: flex; flex-direction: column; justify-content: center; gap: 8px;
+             padding: 26px 28px; background: var(--ink); color: var(--paper); }
+.ly-id-num .k { font-family: ui-monospace, Menlo, monospace; font-size: 10px;
+                letter-spacing: .16em; opacity: .62; }
+.ly-id-num .v { font-family: ui-monospace, Menlo, monospace; font-size: 42px;
+                line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+
+.ly-id-rows { display: grid; }
+.ly-id-row { display: grid; grid-template-columns: 116px minmax(0, 1fr) 20px;
+             gap: 16px; align-items: baseline; padding: 13px 22px;
+             border-bottom: 1px solid var(--rule); text-decoration: none; color: inherit; }
+.ly-id-rows .ly-id-row:last-child { border-bottom: none; }
+.ly-id-row:hover { background: var(--wash); }
+.ly-id-row .k { font-family: ui-monospace, Menlo, monospace; font-size: 10px;
+                letter-spacing: .1em; color: var(--ink-3); }
+.ly-id-row .v { font-family: ui-monospace, Menlo, monospace; font-size: 13px;
+                word-break: break-all; }
+.ly-id-row .go { color: var(--ink-3); text-align: right; font-size: 12px; }
+.ly-id-row:hover .go { color: var(--ink); }
+.ly-id-note { font-size: 14px; line-height: 1.68; color: var(--ink-2);
+              max-width: 74ch; margin: 20px 0 0; }
+.ly-id-note em { font-style: italic; color: var(--ink); }
+
+/* ── intent, with its status stated ─────────────────────────────────────── */
+
+.ly-intent { border-top: 1px solid var(--rule); margin: 6px 0 0; }
+.ly-intent-row { display: grid; grid-template-columns: 92px minmax(0, 1fr);
+                 gap: 18px; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+.ly-intent-row .s { font-family: ui-monospace, Menlo, monospace; font-size: 9px;
+                    letter-spacing: .12em; padding: 2px 0; height: fit-content;
+                    text-align: center; border: 1px solid var(--rule); color: var(--ink-3); }
+/* Only the shipped rows get ink. Reading down the column tells you what is
+   real before you read a single word of it. */
+.ly-intent-row.live .s { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.ly-intent-row.tuning .s { border-color: var(--ink-2); color: var(--ink-2); }
+.ly-intent-row.intended .s { border-style: dashed; }
+.ly-intent-row .b { display: flex; flex-direction: column; gap: 4px; }
+.ly-intent-row .b b { font-size: 15px; font-weight: 600; }
+.ly-intent-row .b span { font-size: 14px; line-height: 1.62; color: var(--ink-2); }
+
+@media (max-width: 900px) {
+  .ly-id { padding: 30px 22px 34px; }
+  .ly-id-grid { grid-template-columns: 1fr; }
+  .ly-id-num { padding: 20px 22px; }
+  .ly-id-num .v { font-size: 34px; }
+  .ly-id-row { grid-template-columns: 100px minmax(0, 1fr); gap: 10px; padding: 11px 16px; }
+  .ly-id-row .go { display: none; }
+  .ly-intent-row { grid-template-columns: 1fr; gap: 7px; }
+  .ly-intent-row .s { width: 92px; }
+}

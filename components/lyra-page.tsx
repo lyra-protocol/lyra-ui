@@ -118,6 +118,36 @@ export function LyraPage() {
         </div>
       </section>
 
+      {/* ── who she is, provably ───────────────────────────────────── */}
+      <section className="ly-id">
+        <div className="ly-id-head">
+          <span className="k">ERC-8004 · TRUSTLESS AGENT IDENTITY</span>
+          <span className="ly-id-verified">VERIFIED</span>
+        </div>
+        <div className="ly-id-grid">
+          <div className="ly-id-num">
+            <span className="k">AGENT</span>
+            <span className="v">#60594</span>
+          </div>
+          <div className="ly-id-rows">
+            <IdRow k="Registry" v="Base · 0x8004A169…a432"
+              href="https://basescan.org/token/0x8004a169fb4a3325136eb29fa0ceb6d2e539a432?a=60594" />
+            <IdRow k="Held by" v="0xB5Dc6714…2780e"
+              href="https://basescan.org/address/0xB5Dc6714167bD31958B62bB2d25FBB0012d2780e" />
+            <IdRow k="Registered" v="Block 49,546,657"
+              href="https://basescan.org/tx/0xe9fbf22c63b766d18b9c6db25f18fee58a71e81b36263b5001b64a3b3cb637a8" />
+            <IdRow k="Agent card" v="lyrabuild.xyz/.well-known"
+              href="/.well-known/agent-registration.json" />
+          </div>
+        </div>
+        <p className="ly-id-note">
+          The registry is an ERC-721: the wallet holding token 60594 <em>is</em> Lyra. It is her
+          own wallet and nobody else&rsquo;s, so looking her up reveals nothing about any person.
+          The chain says this domain describes agent 60594; this domain says the same back.
+          Neither has to be taken on trust.
+        </p>
+      </section>
+
       {/* ── the edge ───────────────────────────────────────────────── */}
       <Section n="01" title="She can see who is about to be forced to trade">
         <p>
@@ -226,6 +256,33 @@ export function LyraPage() {
         </p>
       </Section>
 
+      {/* ── stated plainly, and labelled honestly ──────────────────── */}
+      <Section n="05" title="What she is for, and what is not built yet">
+        <p>
+          Her edge is not that she trades. It is that she reconstructs positions nobody else
+          keeps a record of. Trading is how she proves the data is worth something. Selling
+          access to it is the other half, and it does not require her to be right.
+        </p>
+        <div className="ly-intent">
+          <Intent state="live" k="Forced-flow map, Hyperliquid"
+            v="Positions of thousands of real accounts, rebuilt continuously. Live and growing." />
+          <Intent state="live" k="Read access over MCP"
+            v="Her decisions, her closed trades and the liquidation map, to any agent with a wallet." />
+          <Intent state="live" k="Public identity"
+            v="ERC-8004 agent 60594 on Base, tied to this domain in both directions." />
+          <Intent state="tuning" k="The permanent ledger"
+            v="Reasoning written to Arweave before each trade. Opens when the strategy has earned it — Arweave has no delete, and a permanent record of unvalidated noise is a permanent liability." />
+          <Intent state="intended" k="Paid access"
+            v="Metered or per-call payment for the dataset. Nothing is built; her agent card says x402Support false because that is true." />
+          <Intent state="intended" k="Prediction markets"
+            v="The same gap exists on Polymarket: it publishes who holds what now and keeps no history. A second tape, recorded from the day it starts. Not built, and deliberately not started until the first one is proven." />
+        </div>
+        <p className="ly-fine ly-block">
+          Everything above is marked with what it actually is. A roadmap that reads as though it
+          already shipped is the first thing that makes a record untrustworthy.
+        </p>
+      </Section>
+
       <section className="ly-end">
         <h2>Every decision she has made is on one screen.</h2>
         <Link href="/terminal" className="ly-btn lg">Open the terminal</Link>
@@ -234,6 +291,35 @@ export function LyraPage() {
         </p>
       </section>
     </main>
+  );
+}
+
+function IdRow({ k, v, href }: { k: string; v: string; href: string }) {
+  const external = href.startsWith("http");
+  return (
+    <a className="ly-id-row" href={href}
+       {...(external ? { target: "_blank", rel: "noreferrer" } : {})}>
+      <span className="k">{k}</span>
+      <span className="v">{v}</span>
+      <span className="go" aria-hidden>↗</span>
+    </a>
+  );
+}
+
+/**
+ * One line of intent, with its real status.
+ *
+ * The label is the point. A roadmap that reads as though it already shipped is
+ * the first thing that makes a record untrustworthy, and hers is the only thing
+ * she has.
+ */
+function Intent({ state, k, v }: { state: "live" | "tuning" | "intended"; k: string; v: string }) {
+  const label = { live: "LIVE", tuning: "TUNING", intended: "INTENDED" }[state];
+  return (
+    <div className={`ly-intent-row ${state}`}>
+      <span className="s">{label}</span>
+      <span className="b"><b>{k}</b><span>{v}</span></span>
+    </div>
   );
 }
 

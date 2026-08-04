@@ -93,6 +93,13 @@ export function Hub() {
           v={status ? `${int(status.addresses)} accounts` : "—"}
         />
         <Row
+          href="https://basescan.org/token/0x8004a169fb4a3325136eb29fa0ceb6d2e539a432?a=60594"
+          external
+          k="Identity"
+          what="ERC-8004 agent 60594 on Base. The registry is an ERC-721, so the wallet holding it is Lyra — tied to this domain in both directions."
+          v="#60594"
+        />
+        <Row
           href="https://www.npmjs.com/package/@lyra-protocol/record"
           external
           k="Record"
