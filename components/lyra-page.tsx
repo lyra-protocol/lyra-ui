@@ -193,15 +193,11 @@ export function LyraPage() {
       {/* ── the edge ───────────────────────────────────────────────── */}
       <Section n="01" title="She can see who is about to be forced to trade">
         <p>
-          Hyperliquid publishes both sides of every trade it settles — who bought and who
-          sold. No other major venue does. Lyra has been recording that feed continuously,
-          which means she can rebuild the actual positions of thousands of real accounts:
-          their size, their entry, and the exact price at which each one is liquidated.
-        </p>
-        <p>
-          Add those liquidation prices up and you get a map of forced orders — trades that
-          <em> must</em> happen at known prices, regardless of what anyone wants. That map is
-          the only thing she trades on.
+          Hyperliquid publishes both sides of every trade it settles. No other major venue
+          does. Recording that feed lets her rebuild the real positions of thousands of
+          accounts — size, entry, and the exact price each one is liquidated at. Summed,
+          those are a map of orders that <em>must</em> happen at known prices, whatever
+          anyone wants. It is the only thing she trades on.
         </p>
         <aside className="ly-aside">
           <b>It cannot be bought or backfilled.</b> The venue reports positions as they are
@@ -213,8 +209,8 @@ export function LyraPage() {
       {/* ── the reasoning ──────────────────────────────────────────── */}
       <Section n="02" title="She has to commit to why before she is allowed to say what">
         <p>
-          Lyra cannot simply name a trade. She answers four questions in a fixed order, and
-          the fourth is not reachable without the first three:
+          She cannot simply name a trade. Four questions, fixed order, and the fourth is
+          unreachable without the first three:
         </p>
         <ol className="ly-chain">
           {[
@@ -231,26 +227,24 @@ export function LyraPage() {
           ))}
         </ol>
         <p>
-          This is not presentation. Given the same market and the same model, asking for the
-          action directly produced <code>open_short</code>; forcing the premises first produced{" "}
-          <code>open_long</code>. The order changed the answer, so the order is enforced —
-          and because it is enforced, the reasoning is a thing that can be checked rather
-          than a story that fits.
+          Not presentation. Same market, same model: asking for the action directly gave{" "}
+          <code>open_short</code>; forcing the premises first gave <code>open_long</code>.
+          The order changed the answer, so it is enforced.
         </p>
       </Section>
 
       {/* ── the record ─────────────────────────────────────────────── */}
       <Section n="03" title="The reasoning is written first, or the trade does not happen">
         <p>
-          Before an order is placed, her reasoning is published to Arweave and timestamped by
-          a third party. If that write fails, the trade is blocked. An outage stops her
-          opening positions — a cost accepted deliberately, because the record is the asset
-          and any single trade is not.
+          Her reasoning is published to Arweave and timestamped by a third party before the
+          order is placed. If that write fails, the trade is blocked — an outage stops her
+          opening positions, accepted deliberately, because the record is the asset and any
+          single trade is not.
         </p>
         <p>
-          Reasoning written after a position closes is an explanation. Written beforehand and
-          independently timestamped, it is a prediction that can be wrong in public. That
-          difference is the entire point, and it survives only if the ordering is real.
+          Written afterwards it is an explanation. Written beforehand and independently
+          timestamped it is a prediction that can be wrong in public. That is the entire
+          point, and it survives only if the ordering is real.
         </p>
         <aside className="ly-aside">
           <b>Nothing is on Arweave yet.</b> She is trading off-chain while her parameters are
@@ -291,33 +285,32 @@ export function LyraPage() {
           />
         </div>
         <p className="ly-fine ly-block">
-          These are live figures on a small paper account, not a track record. She has been
-          running for hours, not months. Losses appear here at the same size as gains because
-          a page that only reads well when she is winning would contradict the one thing this
-          project claims.
+          Live figures on a small paper account, not a track record — she has been running
+          for hours, not months. Losses appear at the same size as gains, because a page that
+          only reads well when she is winning would contradict the one thing she claims.
         </p>
       </Section>
 
       {/* ── stated plainly, and labelled honestly ──────────────────── */}
       <Section n="05" title="What she is for, and what is not built yet">
         <p>
-          Her edge is not that she trades. It is that she reconstructs positions nobody else
-          keeps a record of. Trading is how she proves the data is worth something. Selling
-          access to it is the other half, and it does not require her to be right.
+          Her edge is not that she trades — it is that she reconstructs positions nobody else
+          records. Trading proves the data is worth something. Selling access is the other
+          half, and it does not require her to be right.
         </p>
         <div className="ly-intent">
           <Intent state="live" k="Forced-flow map, Hyperliquid"
-            v="The positions of thousands of real accounts, rebuilt continuously and growing every minute." />
+            v="Thousands of real accounts, rebuilt continuously and growing every minute." />
           <Intent state="live" k="Read access over MCP"
-            v="Her decisions, her closed trades and the liquidation map, available to any agent with a wallet." />
+            v="Her decisions, closed trades and the liquidation map, to any agent with a wallet." />
           <Intent state="live" k="Public identity"
             v="ERC-8004 agent 60594 on Base, tied to this domain in both directions." />
           <Intent state="tuning" k="The permanent ledger"
-            v="Her reasoning written to Arweave before each trade. It opens when the strategy has earned it — Arweave has no delete, and a permanent record of unvalidated noise is a permanent liability." />
+            v="Written to Arweave before each trade. Opens when the strategy has earned it: Arweave has no delete, and a permanent record of unvalidated noise is a permanent liability." />
           <Intent state="intended" k="Paid access"
-            v="Metered or per-call payment for the dataset. Nothing is built yet, which is why her agent card reads x402Support false." />
+            v="Metered payment for the dataset. Nothing built, which is why her agent card reads x402Support false." />
           <Intent state="intended" k="Prediction markets"
-            v="The same gap exists on Polymarket — it publishes who holds what now and keeps no history. A second tape, recorded from the day it starts. Not begun, and deliberately not begun until the first one is proven." />
+            v="Polymarket has the same gap: it publishes who holds what now and keeps no history. Not begun, and deliberately not until the first tape is proven." />
         </div>
         <p className="ly-fine ly-block">
           Marked with what each thing actually is. A roadmap that reads as though it already
