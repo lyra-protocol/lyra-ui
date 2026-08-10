@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatUsd } from "@/lib/venue";
 import { formatPx } from "@/lib/venue";
 import type { PainMap, Trade, TradesResponse, WalletState } from "@/lib/painmap";
@@ -8,7 +8,7 @@ import type { PainMap, Trade, TradesResponse, WalletState } from "@/lib/painmap"
 /** Freshness readout. A terminal should always say how old its data is. */
 export function Age({ ms }: { ms: number | null }) {
   if (ms === null) return <span className="age">—</span>;
-  return <span className="age">{ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`}</span>;
+  return <span className="age">{ms < 1000 ? "now" : `${Math.floor(ms / 1000)} s`}</span>;
 }
 
 /**
@@ -221,6 +221,34 @@ export function PositionsPanel({ wallet }: { wallet: WalletState | null }) {
  * hiding them inside one number removes the ability to check it.
  */
 export function TradesPanel({ data }: { data: TradesResponse | null }) {
+  type SortKey = "asset" | "entryPx" | "exitPx" | "heldMs" | "feesUsd" | "netUsd";
+  const [sort, setSort] = useState<{ key: SortKey; direction: "asc" | "desc" } | null>(null);
+  const rows = useMemo(() => {
+    if (!sort) return data?.trades ?? [];
+    const direction = sort.direction === "asc" ? 1 : -1;
+    return [...(data?.trades ?? [])].sort((a, b) => {
+      if (sort.key === "asset") return a.asset.localeCompare(b.asset) * direction;
+      return (Number(a[sort.key]) - Number(b[sort.key])) * direction;
+    });
+  }, [data, sort]);
+
+  const heading = (key: SortKey, label: string, right = true) => {
+    const active = sort?.key === key;
+    return (
+      <th className={right ? "r" : undefined} aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}>
+        <button
+          className="sort"
+          onClick={() => setSort((previous) => ({
+            key,
+            direction: previous?.key === key && previous.direction === "desc" ? "asc" : "desc",
+          }))}
+        >
+          {label}<span aria-hidden="true">{active ? (sort.direction === "asc" ? " ↑" : " ↓") : ""}</span>
+        </button>
+      </th>
+    );
+  };
+
   if (!data || data.trades.length === 0) {
     return (
       <div style={{ padding: 12 }}>
@@ -235,12 +263,14 @@ export function TradesPanel({ data }: { data: TradesResponse | null }) {
   return (
     <table className="pos">
       <thead><tr>
-        <th>SYMBOL</th><th className="r">ENTRY</th><th className="r">EXIT</th>
-        <th className="r">HELD</th><th className="r">FEES</th><th className="r">NET</th>
+        {heading("asset", "SYMBOL", false)}{heading("entryPx", "ENTRY")}{heading("exitPx", "EXIT")}
+        {heading("heldMs", "HELD")}{heading("feesUsd", "FEES")}{heading("netUsd", "NET")}
       </tr></thead>
       <tbody>
-        {data.trades.map((t: Trade) => (
-          <tr key={`${t.asset}-${t.closedAt}`}>
+        {/* The collector supplies a stable position id; older deployments do not,
+            so identity falls back to the close itself rather than becoming undefined. */}
+        {rows.map((t: Trade) => (
+          <tr key={t.id ?? `${t.asset}-${t.closedAt}-${t.entryPx}`}>
             <td>
               <span className="sym">{t.asset}</span>{" "}
               <span className={t.side === "long" ? "sd long" : "sd short"}>

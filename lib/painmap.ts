@@ -61,7 +61,7 @@ async function get<T>(path: string): Promise<T> {
 
 export const fetchPainMap = (asset: string) => get<PainMap>(`/painmap?asset=${asset}`);
 export const fetchActivity = () => get<ActivityResponse>("/activity?limit=40");
-export const fetchTrades = () => get<TradesResponse>("/trades?limit=40");
+export const fetchTrades = () => get<TradesResponse>("/trades?limit=200");
 export const fetchStatus = () => get<StatusResponse>("/status");
 
 /** What the harvester has observed. The dataset, stated as a size. */
@@ -77,6 +77,8 @@ export type StatusResponse = {
 
 /** A closed trade. What a decision was actually worth. */
 export type Trade = {
+  /** Position id. Absent while an older collector build is still serving. */
+  id?: number;
   asset: string;
   side: "long" | "short";
   size: string;

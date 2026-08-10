@@ -262,6 +262,10 @@ table.pos .sym { font-size: var(--t-11); }
 /* Side is a label, not a colour: colour means PnL direction and nothing else. */
 table.pos .sd { font-size: var(--t-8); border: 1px solid var(--rule); padding: 0 3px; }
 table.pos .sd.short { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.sort { min-height: 24px; border: 0; padding: 0; background: transparent; color: inherit;
+  font: inherit; cursor: pointer; letter-spacing: inherit; }
+.sort:hover { color: var(--ink); }
+th.r .sort { width: 100%; text-align: right; }
 
 /* ── expanded decision ──────────────────────────────────────────────────── */
 

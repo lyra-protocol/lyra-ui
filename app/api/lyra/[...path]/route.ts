@@ -49,7 +49,7 @@ export async function GET(
       status: upstream.status,
       headers: {
         "content-type": upstream.headers.get("content-type") ?? "application/json",
-        "cache-control": "public, max-age=5, stale-while-revalidate=30",
+        "cache-control": "no-store, max-age=0",
       },
     });
   } catch (error) {

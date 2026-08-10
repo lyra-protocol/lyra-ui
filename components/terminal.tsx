@@ -58,7 +58,7 @@ export function Terminal() {
   const [map, setMap] = useState<PainMap | null>(null);
   const [wallet, setWallet] = useState<WalletState | null>(null);
   const [decisions, setDecisions] = useState<Decision[]>([]);
-  const [selected, setSelected] = useState(0);
+  const [selectedDecisionId, setSelectedDecisionId] = useState<string | null>(null);
   const [trades, setTrades] = useState<TradesResponse | null>(null);
   /** Which half of her book: what she is in, or what it was worth. */
   const [book, setBook] = useState<"open" | "closed">("open");
@@ -70,7 +70,14 @@ export function Terminal() {
   const [clock, setClock] = useState("");
 
   useEffect(() => {
-    const tick = () => setClock(new Date().toISOString().slice(11, 19) + " UTC");
+    const tick = () => {
+      setClock(new Date().toISOString().slice(11, 19) + " UTC");
+      setAges((previous) => ({
+        mkt: previous.mkt === null ? null : previous.mkt + 1000,
+        pm: previous.pm === null ? null : previous.pm + 1000,
+        acct: previous.acct === null ? null : previous.acct + 1000,
+      }));
+    };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
@@ -79,26 +86,24 @@ export function Terminal() {
   useEffect(() => {
     let alive = true;
     const load = () => {
-      const t = performance.now();
       void fetchUniverse().then((a) => {
         if (!alive) return;
         setAssets(a);
-        setAges((p) => ({ ...p, mkt: performance.now() - t }));
+        setAges((p) => ({ ...p, mkt: 0 }));
       }).catch(() => {});
     };
     load();
-    const id = setInterval(load, 8000);
+    const id = setInterval(load, 2000);
     return () => { alive = false; clearInterval(id); };
   }, []);
 
   useEffect(() => {
     let alive = true;
     const load = () => {
-      const t = performance.now();
       void fetchPainMap(asset).then((m) => {
         if (!alive) return;
         setMap(m);
-        setAges((p) => ({ ...p, pm: performance.now() - t }));
+        setAges((p) => ({ ...p, pm: 0 }));
       }).catch(() => alive && setMap(null));
     };
     load();
@@ -108,26 +113,31 @@ export function Terminal() {
 
   useEffect(() => {
     let alive = true;
-    const load = () => {
-      const t = performance.now();
-      void fetchWallet().then((w) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const load = async () => {
+      try {
+        const [w, d, t] = await Promise.all([fetchWallet(), fetchActivity(), fetchTrades()]);
         if (!alive) return;
         setWallet(w);
-        setAges((p) => ({ ...p, acct: performance.now() - t }));
-      }).catch(() => {});
-      void fetchActivity().then((d) => alive && setDecisions(d.decisions ?? [])).catch(() => {});
-      void fetchTrades().then((t) => alive && setTrades(t)).catch(() => {});
+        setDecisions(d.decisions ?? []);
+        setTrades(t);
+        setAges((p) => ({ ...p, acct: 0 }));
+      } catch {
+        // Keep the last good snapshot; its age visibly continues increasing.
+      } finally {
+        if (alive) timer = setTimeout(load, 2000);
+      }
     };
-    load();
-    const id = setInterval(load, 10000);
-    return () => { alive = false; clearInterval(id); };
+    void load();
+    return () => { alive = false; if (timer) clearTimeout(timer); };
   }, []);
 
   // A decision that produced a position is the one worth finding. Holds are
   // shown by default because declining is a real decision, but they must not
   // make the trades unfindable.
   const shown = onlyTrades ? decisions.filter((d) => d.action !== "hold") : decisions;
-  const current = shown[Math.min(selected, Math.max(0, shown.length - 1))];
+  const selectedDecision = shown.find((d) => d.id === selectedDecisionId);
+  const current = selectedDecision ?? shown[0];
   const tradeCount = decisions.filter((d) => d.action !== "hold").length;
 
   /* Only clusters large enough to matter reach the chart. Drawing every level
@@ -285,12 +295,12 @@ export function Terminal() {
                 </div>
               </div>
             ) : (
-              shown.map((d, i) => (
+              shown.map((d) => (
                 <button
                   key={d.id}
                   className={d.action === "hold" ? "dec" : "dec traded"}
-                  aria-current={i === selected}
-                  onClick={() => setSelected(i)}
+                  aria-current={d.id === current?.id}
+                  onClick={() => setSelectedDecisionId(d.id)}
                 >
                   <div className="dec-id">
                     <div className="t">{new Date(d.at).toISOString().slice(11, 19)}</div>
