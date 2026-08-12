@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatUsd } from "@/lib/venue";
 import { formatPx } from "@/lib/venue";
+import { WS_URL } from "@/lib/venue";
 import type { PainMap, Trade, TradesResponse, WalletState } from "@/lib/painmap";
 
 /** Freshness readout. A terminal should always say how old its data is. */
@@ -303,30 +304,74 @@ function duration(ms: number): string {
   return h < 24 ? `${h}h${String(m % 60).padStart(2, "0")}` : `${Math.floor(h / 24)}d${h % 24}h`;
 }
 
-/** Order book — real depth, at the venue's real 2s cadence. */
+/** Order book — Hyperliquid's fast five-level WebSocket feed, with HTTP fallback. */
 export function BookPanel({ asset }: { asset: string }) {
   const [book, setBook] = useState<{ bids: [number, number][]; asks: [number, number][] } | null>(null);
 
   useEffect(() => {
     let alive = true;
-    const load = () =>
+    let socket: WebSocket | null = null;
+    let heartbeat: ReturnType<typeof setInterval> | null = null;
+    let reconnect: ReturnType<typeof setTimeout> | null = null;
+    let retry = 0;
+    const apply = (levels?: { px: string; sz: string }[][]) => {
+      if (!alive || !levels) return;
+      setBook({
+        bids: (levels[0] ?? []).slice(0, 11).map((l) => [Number(l.px), Number(l.sz)]),
+        asks: (levels[1] ?? []).slice(0, 11).map((l) => [Number(l.px), Number(l.sz)]),
+      });
+    };
+    const fallback = () =>
       fetch("https://api.hyperliquid.xyz/info", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ type: "l2Book", coin: asset }),
       })
         .then((r) => r.json())
-        .then((d: { levels?: { px: string; sz: string }[][] }) => {
-          if (!alive || !d.levels) return;
-          setBook({
-            bids: (d.levels[0] ?? []).slice(0, 11).map((l) => [Number(l.px), Number(l.sz)]),
-            asks: (d.levels[1] ?? []).slice(0, 11).map((l) => [Number(l.px), Number(l.sz)]),
-          });
-        })
+        .then((d: { levels?: { px: string; sz: string }[][] }) => apply(d.levels))
         .catch(() => {});
-    void load();
-    const id = setInterval(load, 2000);
-    return () => { alive = false; clearInterval(id); };
+    const connect = () => {
+      if (!alive) return;
+      const ws = new WebSocket(WS_URL);
+      socket = ws;
+      ws.addEventListener("open", () => {
+        retry = 0;
+        ws.send(JSON.stringify({
+          method: "subscribe",
+          subscription: { type: "l2Book", coin: asset, fast: true },
+        }));
+        heartbeat = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ method: "ping" }));
+        }, 30_000);
+      });
+      ws.addEventListener("message", (event) => {
+        try {
+          const message = JSON.parse(String(event.data)) as {
+            channel?: string;
+            data?: { coin?: string; levels?: { px: string; sz: string }[][] };
+          };
+          if (message.channel === "l2Book" && message.data?.coin === asset) apply(message.data.levels);
+        } catch { /* keep the last valid book */ }
+      });
+      const disconnected = () => {
+        if (socket !== ws) return;
+        if (heartbeat) clearInterval(heartbeat);
+        heartbeat = null;
+        socket = null;
+        void fallback();
+        if (alive) reconnect = setTimeout(connect, Math.min(15_000, 1_000 * 2 ** retry++));
+      };
+      ws.addEventListener("close", disconnected);
+      ws.addEventListener("error", () => ws.close());
+    };
+    void fallback();
+    connect();
+    return () => {
+      alive = false;
+      if (heartbeat) clearInterval(heartbeat);
+      if (reconnect) clearTimeout(reconnect);
+      socket?.close();
+    };
   }, [asset]);
 
   if (!book) return <div className="fade" style={{ padding: 10, fontSize: "var(--t-9)" }}>Loading book…</div>;

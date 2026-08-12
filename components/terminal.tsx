@@ -234,7 +234,7 @@ export function Terminal() {
             <div className="ph">
               <span>ORDER BOOK</span>
               <span className="sp" />
-              <span className="fade">{asset} · 2s</span>
+              <span className="fade">{asset} · FAST WS</span>
             </div>
             <div className="pb"><BookPanel asset={asset} /></div>
           </div>
