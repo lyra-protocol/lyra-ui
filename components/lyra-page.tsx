@@ -8,6 +8,7 @@ import {
   fetchActivity, fetchTrades, fetchWallet,
   type Decision, type TradesResponse, type WalletState,
 } from "@/lib/painmap";
+import { useLiveWallet } from "@/lib/live-wallet";
 
 /**
  * Lyra's own page.
@@ -40,6 +41,8 @@ export function LyraPage() {
   const [trades, setTrades] = useState<TradesResponse | null>(null);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [live, setLive] = useState(false);
+  const liveWallet = useLiveWallet(wallet);
+  const displayedWallet = liveWallet.wallet;
 
   useEffect(() => {
     let alive = true;
@@ -99,7 +102,7 @@ export function LyraPage() {
           <div className="ly-figures">
             <Figure
               k="EQUITY"
-              v={wallet ? `$${nf(wallet.equityUsd)}` : "—"}
+              v={displayedWallet ? `$${nf(displayedWallet.equityUsd)}` : "—"}
               note="paper capital"
             />
             <Figure
@@ -110,12 +113,12 @@ export function LyraPage() {
             />
             <Figure
               k="OPEN"
-              v={wallet ? String(wallet.openPositions) : "—"}
-              note={wallet ? `$${nf(wallet.notionalUsd, 0)} at work` : ""}
+              v={displayedWallet ? String(displayedWallet.openPositions) : "—"}
+              note={displayedWallet ? `$${nf(displayedWallet.notionalUsd, 0)} at work` : ""}
             />
             <Figure
               k="DAILY LOSS LIMIT"
-              v={wallet ? `${(wallet.dailyLossUsed * 100).toFixed(2)}%` : "—"}
+              v={displayedWallet ? `${(displayedWallet.dailyLossUsed * 100).toFixed(2)}%` : "—"}
               note="halts at 7.00%"
             />
           </div>

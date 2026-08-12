@@ -11,6 +11,7 @@ import {
 import { Chain, steps } from "@/components/chain";
 import { AccountPanel, Age, BookPanel, PainMapPanel, PositionsPanel, TradesPanel } from "@/components/panels";
 import { Chart, INTERVALS, type Interval } from "@/components/chart";
+import { useHyperliquidMids, useLiveWallet } from "@/lib/live-wallet";
 
 /**
  * How a decision stands with respect to the permanent record.
@@ -68,6 +69,9 @@ export function Terminal() {
     { mkt: null, pm: null, acct: null },
   );
   const [clock, setClock] = useState("");
+  const liveWallet = useLiveWallet(wallet);
+  const liveMids = useHyperliquidMids();
+  const displayedWallet = liveWallet.wallet;
 
   useEffect(() => {
     const tick = () => {
@@ -160,7 +164,7 @@ export function Terminal() {
       {/* ── top bar ────────────────────────────────────────────────── */}
       <div className="bar">
         <span className="brand">LYRA TERMINAL</span>
-        <span><span className="dot" />LIVE</span>
+        <span><span className="dot" />{liveMids.connected ? "STREAMING" : "LIVE · POLLING"}</span>
         <span className="mut">PUBLIC VIEW · READ-ONLY · EVERY CONSULTATION SHOWN</span>
         <span className="sp" />
         <span className="fresh"><span className="fade">MARKET</span><b><Age ms={ages.mkt} /></b></span>
@@ -173,7 +177,10 @@ export function Terminal() {
       {/* ── universe ───────────────────────────────────────────────── */}
       <div className="mkts">
         {UNIVERSE.map((coin) => {
-          const a = assets.find((x) => x.coin === coin);
+              const source = assets.find((x) => x.coin === coin);
+              const a = source && liveMids.mids[coin]
+                ? { ...source, markPx: liveMids.mids[coin]! }
+                : source;
           const chg = a ? dayChange(a) : 0;
           return (
             <div
@@ -236,12 +243,12 @@ export function Terminal() {
         <div className="col col-rail">
           <div className="panel">
             <div className="ph"><span>ACCOUNT</span><span className="sp" /><Age ms={ages.acct} /></div>
-            <div className="pb"><AccountPanel wallet={wallet} trades={trades} /></div>
+            <div className="pb"><AccountPanel wallet={displayedWallet} trades={trades} /></div>
           </div>
           <div className="panel">
             <div className="ph">
               <button className={book === "open" ? "tab on" : "tab"} onClick={() => setBook("open")}>
-                OPEN POSITIONS <b>{wallet?.positions.length ?? 0}</b>
+                OPEN POSITIONS <b>{displayedWallet?.positions.length ?? 0}</b>
               </button>
               <button className={book === "closed" ? "tab on" : "tab"} onClick={() => setBook("closed")}>
                 CLOSED <b>{trades ? trades.wins + trades.losses : 0}</b>
@@ -254,7 +261,7 @@ export function Terminal() {
               )}
             </div>
             <div className="pb">
-              {book === "open" ? <PositionsPanel wallet={wallet} /> : <TradesPanel data={trades} />}
+              {book === "open" ? <PositionsPanel wallet={displayedWallet} /> : <TradesPanel data={trades} />}
             </div>
           </div>
           <div className="panel">

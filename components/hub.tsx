@@ -6,6 +6,7 @@ import {
   fetchStatus, fetchTrades, fetchWallet,
   type StatusResponse, type TradesResponse, type WalletState,
 } from "@/lib/painmap";
+import { useLiveWallet } from "@/lib/live-wallet";
 
 /**
  * lyrabuild.xyz — the hub.
@@ -27,11 +28,18 @@ export function Hub() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [wallet, setWallet] = useState<WalletState | null>(null);
   const [trades, setTrades] = useState<TradesResponse | null>(null);
+  const [days, setDays] = useState<number | null>(null);
+  const liveWallet = useLiveWallet(wallet);
+  const displayedWallet = liveWallet.wallet;
 
   useEffect(() => {
     let alive = true;
     const load = () => {
-      void fetchStatus().then((s) => alive && setStatus(s)).catch(() => {});
+      void fetchStatus().then((s) => {
+        if (!alive) return;
+        setStatus(s);
+        setDays(Math.max(1, Math.round((Date.now() - s.observingSince) / 86_400_000)));
+      }).catch(() => {});
       void fetchWallet().then((w) => alive && setWallet(w)).catch(() => {});
       void fetchTrades().then((t) => alive && setTrades(t)).catch(() => {});
     };
@@ -39,10 +47,6 @@ export function Hub() {
     const id = setInterval(load, 20000);
     return () => { alive = false; clearInterval(id); };
   }, []);
-
-  const days = status
-    ? Math.max(1, Math.round((Date.now() - status.observingSince) / 86_400_000))
-    : null;
 
   return (
     <main className="hub">
@@ -54,8 +58,8 @@ export function Hub() {
         </div>
         <div className="hub-live">
           <span className={wallet ? "ly-dot on" : "ly-dot"} />
-          {wallet
-            ? `LYRA TRADING · ${wallet.openPositions} OPEN · PAPER`
+          {displayedWallet
+            ? `LYRA TRADING · ${displayedWallet.openPositions} OPEN · PAPER`
             : "CONNECTING"}
         </div>
       </header>
@@ -117,7 +121,7 @@ export function Hub() {
           href="/terminal"
           k="Terminal"
           what="Every decision as she makes it, including the ones not to trade. Her positions, her stops, the forced-flow map she trades on."
-          v={wallet ? `${wallet.openPositions} open` : "—"}
+          v={displayedWallet ? `${displayedWallet.openPositions} open` : "—"}
         />
         <Row
           href="/mcp"
